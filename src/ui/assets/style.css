@@ -1,0 +1,181 @@
+/* Основные стили */
+.main-header {
+    font-size: 2.5rem;
+    color: #1E88E5;
+    text-align: center;
+    margin-bottom: 2rem;
+    font-weight: bold;
+    padding-top: 1rem;
+}
+
+.sub-header {
+    font-size: 1.5rem;
+    color: #424242;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+/* Стилизация табов - центрирование */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 24px;
+    background-color: #f0f2f6;
+    padding: 10px;
+    border-radius: 10px;
+    justify-content: center;
+    margin: 0 auto;
+    width: fit-content;
+}
+
+.stTabs [data-baseweb="tab"] {
+    height: 50px;
+    white-space: pre-wrap;
+    background-color: white;
+    border-radius: 5px;
+    padding: 10px 20px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    min-width: 150px;
+    text-align: center;
+}
+
+.stTabs [aria-selected="true"] {
+    background-color: #1E88E5 !important;
+    color: white !important;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(30, 136, 229, 0.3);
+}
+
+/* Карточки */
+.metric-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 1.5rem;
+    border-radius: 10px;
+    color: white;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-5px);
+}
+
+.server-selector {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    margin-bottom: 20px;
+    border: 1px solid #e0e0e0;
+}
+
+/* Кнопки */
+.stButton > button {
+    background: linear-gradient(135deg, #1E88E5 0%, #0D47A1 100%);
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    width: 100%;
+}
+
+.stButton > button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(30, 136, 229, 0.3);
+}
+
+/* Графики */
+.js-plotly-plot {
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    background: white;
+    padding: 15px;
+}
+
+/* Сайдбар */
+[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #f8f9fa 0%, #e9ecef 100%);
+    border-right: 1px solid #dee2e6;
+}
+
+/* Инпуты */
+.stDateInput > div > div {
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+}
+
+.stSelectbox > div > div {
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+}
+
+/* Анимации */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .stTabs [data-baseweb="tab-list"] {
+        flex-direction: column;
+        width: 100%;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+}
+
+/* Дополнительные стили для алертов */
+.alert-critical {
+    background: linear-gradient(135deg, #F44336 0%, #D32F2F 100%);
+    color: white;
+}
+
+.alert-warning {
+    background: linear-gradient(135deg, #FFC107 0%, #FF9800 100%);
+    color: white;
+}
+
+.alert-info {
+    background: linear-gradient(135deg, #2196F3 0%, #1976D2 100%);
+    color: white;
+}
+
+/* Стили для статусов серверов */
+.status-overloaded {
+    border-left: 6px solid #F44336 !important;
+}
+
+.status-underloaded {
+    border-left: 6px solid #FFC107 !important;
+}
+
+.status-normal {
+    border-left: 6px solid #4CAF50 !important;
+}
+
+/* Стили для слайдеров */
+.stSlider > div > div > div {
+    background: linear-gradient(90deg, #4CAF50 0%, #FFC107 50%, #F44336 100%);
+}
+
+/* Стили для number input */
+.stNumberInput > div > div > input {
+    border-radius: 8px;
+    border: 2px solid #e0e0e0;
+    transition: border-color 0.3s;
+}
+
+.stNumberInput > div > div > input:focus {
+    border-color: #1E88E5;
+    box-shadow: 0 0 0 2px rgba(30, 136, 229, 0.2);
+}

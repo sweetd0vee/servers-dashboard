@@ -1,0 +1,168 @@
+#version: '3.8'  # Использована более новая версия
+
+networks:
+  servers-network:
+    driver: bridge
+    external: false
+    name: servers-network
+
+services:
+
+#  httpd-proxy:
+#      image: arina/sber/httpd:2.4
+#      container_name: httpd-proxy
+#      environment:
+#        SERVER_NAME: "${SERVER_NAME:-localhost}"
+#        WEB_PROTOCOL: "${WEB_PROTOCOL:-http}"
+#        STREAMLIT_HOST: dashboard
+#        STREAMLIT_PORT: 8501
+#      ports:
+#        - "${HOST_HTTP_PORT:-80}:80"
+#        - "443:443"
+#      volumes:
+#        - "${LETS_ENCRYPT_DIR:-../httpd/data/letsencrypt/live/localhost}:/etc/letsencrypt/live/localhost"
+#        # you can put httpd.conf in docker-share folder to override
+#        # - ~/docker-share/apache2/conf:/usr/local/apache2/conf
+#      networks:
+#        - servers-network
+#      restart: unless-stopped
+
+  postgres:
+      image: arina/sber/postgres:16.9-bookworm
+      container_name: postgres
+      hostname: postgres
+      ports:
+        - 5432:5432
+      environment:
+        POSTGRES_USER: ${DB_USER}
+        POSTGRES_PASSWORD: ${DB_PASSWORD}
+        SERVICE_5432_NAME: postgres
+        SERVICE_5432_CHECK_TCP: "true"
+        SERVICE_5432_CHECK_INTERVAL: 30s
+        SERVICE_5432_CHECK_TIMEOUT: 5s
+      volumes:
+        - ~/docker-share/postgres-data-server:/var/lib/postgresql/data
+      networks:
+        - servers-network
+      restart: unless-stopped
+
+
+#   keycloak:
+#     image: arina/sber/keycloak:26.4.6
+#     #image: quay.io/keycloak/keycloak:26.4.6
+#     container_name: keycloak
+#     hostname: keycloak
+#     environment:
+#       KEYCLOAK_ADMIN: admin
+#       KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+
+#       KC_HOSTNAME: "${KEYCLOAK_URL_FOR_AUTH}"
+#       KC_HTTP_RELATIVE_PATH: /keycloak
+
+#       KEYCLOAK_CLIENT_SECRET: "${KEYCLOAK_CLIENT_SECRET:-clientsecret}"
+
+#       # KC DB
+#       KC_DB: postgres
+#       KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+#       KC_DB_USERNAME: ${DB_USER}
+#       KC_DB_PASSWORD: ${DB_PASSWORD}
+#     ports:
+#       - "8087:8080"
+#     depends_on:
+#       postgres:
+#         condition: service_started
+#     #command: start-dev --import-realm
+#     command: start --optimized  --proxy-headers xforwarded --hostname-backchannel-dynamic true --http-enabled true --import-realm
+#     #command: start-dev
+# #    volumes:
+#      - keycloak_data:/opt/keycloak/data
+#    networks:
+#      - servers-network
+
+
+#----------llama--------------------------------------------
+
+  llama-server:
+    image: ghcr.io/ggml-org/llama.cpp:server
+    container_name: llama-server
+    hostname: llama-server
+    environment:
+      GGML_CPU_N_THREADS: 16
+    command: >
+      --model /work/models/Falcon-H1R-7B-UD-Q8_K_XL.gguf
+      --port 8080
+      --host 0.0.0.0
+      --ctx-size 2048
+      --no-mmap
+      --n-gpu-layers 0
+    deploy:  # Исправлено: ресурсы теперь в разделе deploy
+      resources:
+        limits:
+          memory: 16G
+          cpus: '8'
+    ports:
+      - "8080:8080"
+    volumes:
+      - ~/docker-share/models:/work/models
+    restart: unless-stopped
+    networks:
+      - servers-network
+
+#-------------------------------------------------------------------
+
+#  dashboard:
+#    image: arina/sber/dashboard:main
+#    container_name: dashboard
+#    hostname: dashboard
+#    environment:
+#      STREAMLIT_SERVER_PORT: 8501
+#      STREAMLIT_SERVER_ADDRESS: 0.0.0.0
+#      STREAMLIT_SERVER_BASE_URL_PATH: /dashboard
+#
+#      KEYCLOAK_URL: ${KEYCLOAK_URL}
+#      KEYCLOAK_REDIRECT_URI: ${KEYCLOAK_REDIRECT_URI}
+#      KEYCLOAK_URL_FOR_AUTH: ${KEYCLOAK_URL_FOR_AUTH}
+#
+#      DB_USER: ${DB_USER:-postgres}
+#      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+#      DB_HOST: ${DB_HOST:-postgres}
+#      DB_PORT: ${DB_PORT:-5432}
+#      DB_NAME: ${DB_NAME:-server_metrics}
+#
+#      DASHBOARD-BE_URL: "${DASHBOARD-BE_URL:-http://dashboard-be:8000/dashboard}"
+#
+#    depends_on:
+#      - llama-server
+#      - postgres
+#    ports:
+#      - "8050:8050"
+#      - "8501:8501"
+#    restart: unless-stopped
+#    networks:
+#      - servers-network
+
+#  dashboard-be:
+#    image: arina/sber/dashboard-be:main
+#    container_name: dashboard-be
+#    hostname: dashboard-be
+#    environment:
+#      UVICORN_ROOT_PATH: /dashboard-be
+#
+#      KEYCLOAK_URL: ${KEYCLOAK_URL}
+#      KEYCLOAK_REDIRECT_URI: ${KEYCLOAK_REDIRECT_URI}
+#      KEYCLOAK_URL_FOR_AUTH: ${KEYCLOAK_URL_FOR_AUTH}
+#
+#      DB_USER: ${DB_USER:-postgres}
+#      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+#      DB_HOST: ${DB_HOST:-postgres}
+#      DB_PORT: ${DB_PORT:-5432}
+#      DB_NAME: ${DB_NAME:-server_metrics}
+#
+#    depends_on:
+#      - llama-server
+#      - postgres
+#    ports:
+#      - "8000:8000"
+#    restart: unless-stopped
+#    networks:
+#      - servers-network
