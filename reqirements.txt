@@ -1,37 +1,35 @@
-# Web Framework & Server
+# Основные зависимости веб-приложения
 fastapi==0.104.1
-uvicorn[standard]==0.24.0
-python-multipart==0.0.6
+uvicorn==0.24.0
+streamlit==1.28.1  # Понижена версия для совместимости
 
-# Data Validation
-pydantic==2.5.0
+# Базы данных и ORM
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
 
-# Database
-sqlalchemy==1.4.41
-psycopg2-binary==2.9.11
-
-# Authentication & Security
-pyjwt==2.10.1
-cryptography==41.0.7
-
-# Data Processing
+# Data science и анализ
 pandas==2.1.4
-numpy==1.26.2
-openpyxl==3.1.5
-scikit-learn==1.3.2
+numpy==1.24.4
+scikit-learn==1.3.0
 
-# Time Series Forecasting
-prophet==1.1.5
+# Прогнозирование
+prophet==1.1.4  # Совместимая версия с Python 3.11+
 cmdstanpy==1.2.0
 
-# Visualization
+# Валидация данных
+pydantic==2.5.0
+
+# Работа с файлами
+python-multipart==0.0.6
+aiofiles==23.2.1
+openpyxl==3.1.2
+
+# Визуализация
 plotly==5.18.0
 
-# Web Interface
-streamlit==1.50.0
+# Безопасность и аутентификация
+PyJWT==2.8.0  # Понижена версия для совместимости
+cryptography==41.0.7
 
-# File Handling
-aiofiles==23.2.1
-
-# Environment Variables
+# Конфигурация
 python-dotenv==1.0.0
