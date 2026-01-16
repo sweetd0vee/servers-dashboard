@@ -12,9 +12,9 @@ services:
       STREAMLIT_SERVER_ADDRESS: 0.0.0.0
       STREAMLIT_SERVER_BASE_URL_PATH: /dashboard
 
-      KEYCLOAK_URL: ${KEYCLOAK_URL}
-      KEYCLOAK_REDIRECT_URI: ${KEYCLOAK_REDIRECT_URI}
-      KEYCLOAK_URL_FOR_AUTH: ${KEYCLOAK_URL_FOR_AUTH}
+      KEYCLOAK_URL: ${KEYCLOAK_URL:-http://localhost:8087/keycloak}
+      KEYCLOAK_REDIRECT_URI: ${KEYCLOAK_REDIRECT_URI:-http://localhost:8501/dashboard}
+      KEYCLOAK_URL_FOR_AUTH: ${KEYCLOAK_URL_FOR_AUTH:-http://localhost:8087/keycloak}
 
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}

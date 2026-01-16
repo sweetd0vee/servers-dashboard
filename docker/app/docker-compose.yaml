@@ -10,9 +10,9 @@ services:
     environment:
       UVICORN_ROOT_PATH: /dashboard-be
 
-      KEYCLOAK_URL: ${KEYCLOAK_URL}
-      KEYCLOAK_REDIRECT_URI: ${KEYCLOAK_REDIRECT_URI}
-      KEYCLOAK_URL_FOR_AUTH: ${KEYCLOAK_URL_FOR_AUTH}
+      KEYCLOAK_URL: ${KEYCLOAK_URL:-http://localhost:8087/keycloak}
+      KEYCLOAK_REDIRECT_URI: ${KEYCLOAK_REDIRECT_URI:-http://localhost:8501/dashboard}
+      KEYCLOAK_URL_FOR_AUTH: ${KEYCLOAK_URL_FOR_AUTH:-http://localhost:8087/keycloak}
 
       DB_USER: ${DB_USER:-postgres}
       DB_PASSWORD: ${DB_PASSWORD:-postgres}

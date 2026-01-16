@@ -1,8 +1,7 @@
-#!/usr/bin/env bash
-
-cd ../..
+@echo off
+setlocal
+set "SCRIPT_DIR=%~dp0"
+cd /d "%SCRIPT_DIR%..\.."
 
 docker build -t arina/sber/httpd:2.4 -f docker/httpd/Dockerfile .
-
-#docker push goolegs/trs/keycloak:local
-#read -rsn1 -p"Press any key to continue";echo
+endlocal

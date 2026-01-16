@@ -15,6 +15,19 @@ cd docker/all
 docker-compose up -d
 ```
 
+#### Docker для Windows/macOS
+Windows (PowerShell/cmd):
+```bat
+docker\all\docker-compose-up.bat
+docker\all\docker-compose-down.bat
+```
+
+macOS/Linux:
+```bash
+./docker/all/docker-compose-up.sh
+./docker/all/docker-compose-down.sh
+```
+
 После старта:
 - API: `http://localhost:8000` (Swagger: `/docs`, ReDoc: `/redoc`)
 - UI: `http://localhost:8501`
