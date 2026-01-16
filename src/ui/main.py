@@ -28,7 +28,9 @@ if 'role' not in st.session_state:
 def apply_custom_styles():
     """Применение кастомных стилей"""
     try:
-        with open(r"C:\Users\audit\Work\Arina\Servers\dashboard\src\ui\assets\style.css", encoding='utf-8') as f:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        css_path = os.path.join(base_dir, "assets", "style.css")
+        with open(css_path, encoding='utf-8') as f:
             css_content = f.read()
             st.markdown(f"<style>{css_content}</style>", unsafe_allow_html=True)
     except FileNotFoundError:

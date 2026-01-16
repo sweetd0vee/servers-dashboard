@@ -174,7 +174,7 @@ class ServerMetricsPredictions(Base):
             f"<ServerMetricsPrediction(vm='{self.vm}', "
             f"timestamp='{self.timestamp}', "
             f"metric='{self.metric}', "
-            f"predicted_value={self.predicted_value}"
+            f"predicted_value={self.value_predicted}"
         )
 
 
