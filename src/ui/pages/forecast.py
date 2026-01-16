@@ -15,6 +15,7 @@ warnings.filterwarnings('ignore')
 # Добавляем путь для импорта
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
+repo_root = os.path.abspath(os.path.join(current_dir, "..", "..", ".."))
 sys.path.append(parent_dir)
 
 # Импортируем модули для загрузки данных из базы
@@ -42,11 +43,12 @@ except ImportError:
 def load_as_mapping_data():
     """Загружает данные о маппинге серверов на АС"""
     try:
-        file_path = os.path.join(r'C:\Users\audit\Work\Arina\Servers\dashboard\data\source\all_vm.xlsx')
+        file_path = os.path.join(repo_root, "data", "source", "all_vm.xlsx")
         if not os.path.exists(file_path):
             possible_paths = [
-                os.path.join(parent_dir, 'data', 'source', 'all_vm.xlsx'),
-                'all_vm.xlsx'
+                os.path.join(repo_root, "data", "source", "all_vm.xlsx"),
+                os.path.join("data", "source", "all_vm.xlsx"),
+                "all_vm.xlsx",
             ]
 
             for path in possible_paths:
