@@ -4,7 +4,7 @@ FROM postgres:16.9-bookworm
 
 # Copy the initialization script into the entrypoint directory.
 # Scripts in this directory are automatically executed on first run.
-COPY ./docker/postgres/01-init-dbs.sh /docker-entrypoint-initdb.d/
+COPY ./docker-macos/postgres/01-init-dbs.sh /docker-entrypoint-initdb.d/
 
 # The entrypoint script will handle execution permissions,
 # but setting it explicitly is good practice.
