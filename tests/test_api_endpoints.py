@@ -334,6 +334,24 @@ class TestPredictionsEndpoints:
         assert all("error" in comp for comp in data)
         assert all("relative_error" in comp for comp in data)
 
+    def test_save_predictions_batch_empty(self, client):
+        """Test batch saving with empty list"""
+        response = client.post("/api/v1/predictions/batch", json=[])
+        assert response.status_code == 400
+
+    def test_get_predictions_invalid_date_range(self, client):
+        """Test predictions endpoint with invalid date range"""
+        response = client.get(
+            "/api/v1/predictions",
+            params={
+                "vm": "test.csv-vm-01",
+                "metric": "cpu.usage.average",
+                "start_date": "2025-01-30T00:00:00",
+                "end_date": "2025-01-01T00:00:00",
+            },
+        )
+        assert response.status_code == 400
+
 
 class TestLegacyEndpoints:
     """Test legacy endpoints for backward compatibility"""
@@ -395,6 +413,28 @@ class TestLegacyEndpoints:
                 "days": 1,
                 "start_date": "2025-01-27T00:00:00"
             }
+        )
+        assert response.status_code == 400
+
+
+class TestFactsEndpointsEdgeCases:
+    """Edge cases for facts endpoints"""
+
+    def test_create_metrics_fact_batch_empty(self, client):
+        """Test batch create with empty list"""
+        response = client.post("/api/v1/facts/batch", json=[])
+        assert response.status_code == 400
+
+    def test_get_facts_invalid_date_range(self, client):
+        """Test facts endpoint with invalid date range"""
+        response = client.get(
+            "/api/v1/facts",
+            params={
+                "vm": "test.csv-vm-01",
+                "metric": "cpu.usage.average",
+                "start_date": "2025-01-30T00:00:00",
+                "end_date": "2025-01-01T00:00:00",
+            },
         )
         assert response.status_code == 400
 
