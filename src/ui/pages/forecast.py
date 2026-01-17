@@ -7,6 +7,7 @@ import os
 import numpy as np
 from plotly.subplots import make_subplots
 import warnings
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from prophet import Prophet
 
 
@@ -77,6 +78,71 @@ def load_as_mapping_data():
             as_name = np.random.choice(as_list)
             mapping[server] = as_name
         return mapping
+
+
+@st.cache_data(ttl=3600)
+def load_server_capacities():
+    """Загружает данные о мощностях серверов из Excel файла"""
+    try:
+        file_path = os.path.join(repo_root, "data", "source", "all_vm.xlsx")
+        if not os.path.exists(file_path):
+            possible_paths = [
+                os.path.join(repo_root, "data", "source", "all_vm.xlsx"),
+                os.path.join(parent_dir, "data", "source", "all_vm.xlsx"),
+                "all_vm.xlsx",
+            ]
+
+            for path in possible_paths:
+                if os.path.exists(path):
+                    file_path = path
+                    break
+
+        if os.path.exists(file_path):
+            df = pd.read_excel(file_path)
+            capacities = {}
+            for _, row in df.iterrows():
+                server_name = str(row.get('Имя КЕ', '')).strip()
+                cpu_count = float(row.get('Discovery_CPU Count', 0)) if pd.notna(row.get('Discovery_CPU Count')) else 0
+                mem_count = float(row.get('Discovery_RAM (Gb)', 0)) if pd.notna(row.get('Discovery_RAM (Gb)')) else 0
+
+                if server_name:
+                    server_normalized = server_name.lower().replace('_', '-').replace(' ', '-')
+                    capacities[server_normalized] = {
+                        'cpu': cpu_count,
+                        'ram': mem_count,
+                        'original_name': server_name
+                    }
+                    capacities[server_name] = {
+                        'cpu': cpu_count,
+                        'ram': mem_count,
+                        'original_name': server_name
+                    }
+            return capacities
+        else:
+            st.warning(f"Файл мощностей серверов не найден по пути: {file_path}")
+            return {}
+    except Exception as e:
+        st.error(f"Ошибка при загрузке мощностей серверов: {e}")
+        return {}
+
+
+def get_server_capacity_label(server_name: str, capacities: dict, metric: str) -> str:
+    default_cpu = 2.0
+    default_ram = 8.0
+
+    normalized = str(server_name).lower().replace('_', '-').replace(' ', '-')
+    capacity = capacities.get(normalized) or capacities.get(server_name) or {}
+    cpu_value = capacity.get('cpu', 0) if isinstance(capacity, dict) else 0
+    ram_value = capacity.get('ram', 0) if isinstance(capacity, dict) else 0
+
+    if cpu_value == 0:
+        cpu_value = default_cpu
+    if ram_value == 0:
+        ram_value = default_ram
+
+    if "cpu" in metric.lower():
+        return f"CPU: {cpu_value:.0f} vCPU"
+    return f"RAM: {ram_value:.0f} GB"
 
 
 @st.cache_data(ttl=300)
@@ -196,7 +262,12 @@ def prepare_data_for_prophet(df, metric, server_name=None):
         return pd.DataFrame()
 
 
-def generate_forecast_for_server(prophet_df: pd.DataFrame, forecast_days: int):
+def generate_forecast_for_server(
+    prophet_df: pd.DataFrame,
+    forecast_days: int,
+    server_name: str,
+    metric: str
+):
     def add_time_features(df: pd.DataFrame) -> pd.DataFrame:
         df = df.copy()
         dt = df['ds']
@@ -215,11 +286,29 @@ def generate_forecast_for_server(prophet_df: pd.DataFrame, forecast_days: int):
         df['is_year_end'] = dt.dt.is_year_end.astype(int)
         return df
 
+    def ensure_stan_backend(model: Prophet) -> None:
+        if hasattr(model, "stan_backend"):
+            return
+        if hasattr(model, "_load_backend"):
+            try:
+                model._load_backend()
+            except Exception:
+                pass
+
+    def calculate_mape(actual: np.ndarray, predicted: np.ndarray) -> float:
+        epsilon = 1e-10
+        safe_actual = np.where(actual == 0, epsilon, actual)
+        return float(np.mean(np.abs((actual - predicted) / safe_actual)) * 100)
+
+    def calculate_mae(actual: np.ndarray, predicted: np.ndarray) -> float:
+        return float(np.mean(np.abs(actual - predicted)))
+
+    def calculate_rmse(actual: np.ndarray, predicted: np.ndarray) -> float:
+        return float(np.sqrt(np.mean((actual - predicted) ** 2)))
     def build_model(params: dict, feature_columns: list) -> Prophet:
         model = Prophet(
             daily_seasonality=params['daily_seasonality'],
             weekly_seasonality=params['weekly_seasonality'],
-            yearly_seasonality=params['yearly_seasonality'],
             seasonality_mode=params['seasonality_mode'],
             changepoint_prior_scale=params['changepoint_prior_scale'],
             seasonality_prior_scale=params['seasonality_prior_scale'],
@@ -227,9 +316,14 @@ def generate_forecast_for_server(prophet_df: pd.DataFrame, forecast_days: int):
             changepoint_range=params['changepoint_range'],
             n_changepoints=params['n_changepoints'],
         )
+        ensure_stan_backend(model)
         for col in feature_columns:
             model.add_regressor(col)
         return model
+
+    logger.info(
+        f"Начинаем подбор гиперпараметров для сервера '{server_name}', метрика '{metric}'"
+    )
 
     # Добавляем расширенные временные признаки
     prophet_df = add_time_features(prophet_df)
@@ -255,10 +349,10 @@ def generate_forecast_for_server(prophet_df: pd.DataFrame, forecast_days: int):
         val_forecast = model.predict(val_data[['ds'] + feature_columns])
         val_actual = val_data['y'].values
         val_pred = val_forecast['yhat'].values
-        return float(np.mean(np.abs(val_actual - val_pred)))
+        return calculate_mape(val_actual, val_pred)
 
     def evaluate_with_cv(data: pd.DataFrame, params: dict, n_splits: int, horizon_points: int) -> float:
-        maes = []
+        mapes = []
         total_points = len(data)
         for split_idx in range(1, n_splits + 1):
             train_end = total_points - horizon_points * (n_splits - split_idx + 1)
@@ -267,24 +361,22 @@ def generate_forecast_for_server(prophet_df: pd.DataFrame, forecast_days: int):
             if len(train_df) < 4 or len(val_df) < 4:
                 continue
             try:
-                mae = evaluate_with_holdout(train_df, val_df, params)
-                maes.append(mae)
+                mape = evaluate_with_holdout(train_df, val_df, params)
+                mapes.append(mape)
             except Exception:
                 continue
-        if not maes:
+        if not mapes:
             return np.inf
-        return float(np.mean(maes))
+        return float(np.mean(mapes))
 
     # Подготовка train/val разбиения для подбора гиперпараметров
     prophet_df = prophet_df.sort_values('ds')
     total_points = len(prophet_df)
-    yearly_seasonality = (prophet_df['ds'].max() - prophet_df['ds'].min()).days >= 365
 
     if total_points < 8:
         fallback_params = {
             'daily_seasonality': True,
             'weekly_seasonality': True,
-            'yearly_seasonality': yearly_seasonality,
             'seasonality_mode': 'additive',
             'changepoint_prior_scale': 0.05,
             'seasonality_prior_scale': 10.0,
@@ -293,6 +385,7 @@ def generate_forecast_for_server(prophet_df: pd.DataFrame, forecast_days: int):
             'n_changepoints': 25,
         }
         best_model = build_model(fallback_params, feature_columns)
+        ensure_stan_backend(best_model)
         best_model.fit(prophet_df)
 
         forecast_hours = forecast_days * 24
@@ -303,7 +396,12 @@ def generate_forecast_for_server(prophet_df: pd.DataFrame, forecast_days: int):
         )
         future = add_time_features(future)
         forecast = best_model.predict(future[['ds'] + feature_columns])
-        return forecast, best_model, None, "default"
+
+        history_pred = best_model.predict(prophet_df[['ds'] + feature_columns])
+        history_mape = calculate_mape(prophet_df['y'].values, history_pred['yhat'].values)
+        history_mae = calculate_mae(prophet_df['y'].values, history_pred['yhat'].values)
+        history_rmse = calculate_rmse(prophet_df['y'].values, history_pred['yhat'].values)
+        return forecast, best_model, history_mape, history_mae, history_rmse, "default"
 
     val_size = max(10, int(total_points * 0.2))
     val_size = min(val_size, total_points - 4)
@@ -316,7 +414,6 @@ def generate_forecast_for_server(prophet_df: pd.DataFrame, forecast_days: int):
         {
             'daily_seasonality': True,
             'weekly_seasonality': True,
-            'yearly_seasonality': yearly_seasonality,
             'seasonality_mode': seasonality_mode,
             'changepoint_prior_scale': cps,
             'seasonality_prior_scale': sps,
@@ -332,7 +429,7 @@ def generate_forecast_for_server(prophet_df: pd.DataFrame, forecast_days: int):
         for ncp in [15, 25, 35]
     ]
 
-    # Подбор лучшей модели по MAE на валидации или кросс-валидации
+    # Подбор лучшей модели по MAPE на валидации или кросс-валидации
     best_score = np.inf
     best_params = None
     best_model = None
@@ -344,25 +441,49 @@ def generate_forecast_for_server(prophet_df: pd.DataFrame, forecast_days: int):
     use_cv = n_splits >= 2 and total_points >= (horizon_points * (n_splits + 1))
     eval_method = "cv" if use_cv else "holdout"
 
-    for params in param_grid:
-        try:
-            if use_cv:
-                mae = evaluate_with_cv(prophet_df, params, n_splits, horizon_points)
-            else:
-                mae = evaluate_with_holdout(train_df, val_df, params)
+    # Ограничиваем число комбинаций для ускорения
+    max_combinations = 60 if total_points < 400 else 90
+    if len(param_grid) > max_combinations:
+        rng = np.random.default_rng(42)
+        chosen_idx = rng.choice(len(param_grid), size=max_combinations, replace=False)
+        param_candidates = [param_grid[i] for i in chosen_idx]
+        logger.info(
+            f"[{server_name}/{metric}] сокращаем grid: "
+            f"{len(param_grid)} -> {len(param_candidates)} комбинаций"
+        )
+    else:
+        param_candidates = param_grid
 
-            if mae < best_score:
-                best_score = mae
-                best_params = params
-        except Exception:
-            continue
+    def evaluate_params(params: dict) -> float:
+        if use_cv:
+            return evaluate_with_cv(prophet_df, params, n_splits, horizon_points)
+        return evaluate_with_holdout(train_df, val_df, params)
+
+    max_workers = min(4, os.cpu_count() or 2)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_map = {
+            executor.submit(evaluate_params, params): params
+            for params in param_candidates
+        }
+        for idx, future in enumerate(as_completed(future_map), start=1):
+            params = future_map[future]
+            try:
+                mape = future.result()
+                if mape < best_score:
+                    best_score = mape
+                    best_params = params
+                    logger.info(
+                        f"[{server_name}/{metric}] новая лучшая MAPE={best_score:.4f}% "
+                        f"(метод={eval_method}, вариант {idx}/{len(param_candidates)})"
+                    )
+            except Exception:
+                continue
 
     # Если оптимизация не удалась, используем базовые параметры
     if best_params is None:
         fallback_params = {
             'daily_seasonality': True,
             'weekly_seasonality': True,
-            'yearly_seasonality': yearly_seasonality,
             'seasonality_mode': 'additive',
             'changepoint_prior_scale': 0.05,
             'seasonality_prior_scale': 10.0,
@@ -371,11 +492,18 @@ def generate_forecast_for_server(prophet_df: pd.DataFrame, forecast_days: int):
             'n_changepoints': 25,
         }
         best_model = build_model(fallback_params, feature_columns)
+        ensure_stan_backend(best_model)
         best_model.fit(prophet_df)
     else:
         # Переобучаем лучшую модель на всех данных
         best_model = build_model(best_params, feature_columns)
+        ensure_stan_backend(best_model)
         best_model.fit(prophet_df)
+
+    logger.info(
+        f"Подбор завершен для '{server_name}'/{metric}: "
+        f"MAPE={best_score if best_params else None}, метод={eval_method}"
+    )
 
     # Создаем фрейм для прогноза
     forecast_hours = forecast_days * 24
@@ -388,7 +516,12 @@ def generate_forecast_for_server(prophet_df: pd.DataFrame, forecast_days: int):
 
     # Генерируем прогноз
     forecast = best_model.predict(future[['ds'] + feature_columns])
-    return forecast, best_model, best_score, eval_method
+
+    history_pred = best_model.predict(prophet_df[['ds'] + feature_columns])
+    history_mape = calculate_mape(prophet_df['y'].values, history_pred['yhat'].values)
+    history_mae = calculate_mae(prophet_df['y'].values, history_pred['yhat'].values)
+    history_rmse = calculate_rmse(prophet_df['y'].values, history_pred['yhat'].values)
+    return forecast, best_model, history_mape, history_mae, history_rmse, eval_method
 
 
 def generate_forecast_for_as(as_name, servers_data, metric, forecast_days, as_mapping):
@@ -403,9 +536,11 @@ def generate_forecast_for_as(as_name, servers_data, metric, forecast_days, as_ma
             continue
 
         try:
-            forecast, model, quality_mae, quality_method = generate_forecast_for_server(
+            forecast, model, quality_mape, quality_mae, quality_rmse, quality_method = generate_forecast_for_server(
                 prophet_df,
-                forecast_days
+                forecast_days,
+                server,
+                metric
             )
 
             # Сохраняем результаты
@@ -413,7 +548,9 @@ def generate_forecast_for_as(as_name, servers_data, metric, forecast_days, as_ma
                 'forecast': forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']],
                 'model': model,
                 'history': prophet_df,
+                'quality_mape': quality_mape,
                 'quality_mae': quality_mae,
+                'quality_rmse': quality_rmse,
                 'quality_method': quality_method
             }
 
@@ -424,7 +561,7 @@ def generate_forecast_for_as(as_name, servers_data, metric, forecast_days, as_ma
     return results
 
 
-def create_forecast_plot(server_name, forecast_results, metric, as_name):
+def create_forecast_plot(server_name, forecast_results, metric, as_name, capacity_label=None):
     """Создает график прогноза для одного сервера"""
     if server_name not in forecast_results:
         return None
@@ -469,8 +606,9 @@ def create_forecast_plot(server_name, forecast_results, metric, as_name):
 
     # Настройка layout
     metric_name = "CPU" if "cpu" in metric.lower() else "RAM"
+    capacity_suffix = f" ({capacity_label})" if capacity_label else ""
     fig.update_layout(
-        title=f'<b>{server_name}</b><br>Прогноз {metric_name} нагрузки',
+        title=f'<b>{server_name}</b>{capacity_suffix}<br>Прогноз {metric_name} нагрузки',
         xaxis_title='<b>Дата и время</b>',
         yaxis_title=f'<b>Нагрузка {metric_name} (%)</b>',
         height=400,
@@ -490,9 +628,22 @@ def create_forecast_plot(server_name, forecast_results, metric, as_name):
     return fig
 
 
-def create_summary_table(forecast_results, as_name, metric):
+def create_summary_table(forecast_results, as_name, metric, server_capacities=None):
     """Создает сводную таблицу прогнозов"""
     summary_data = []
+
+    def get_capacity_value(server_name: str, metric_name: str) -> float:
+        if not server_capacities:
+            return 0.0
+        normalized = str(server_name).lower().replace('_', '-').replace(' ', '-')
+        capacity = server_capacities.get(normalized) or server_capacities.get(server_name) or {}
+        cpu_value = capacity.get('cpu', 0) if isinstance(capacity, dict) else 0
+        ram_value = capacity.get('ram', 0) if isinstance(capacity, dict) else 0
+        if cpu_value == 0:
+            cpu_value = 2.0
+        if ram_value == 0:
+            ram_value = 8.0
+        return float(cpu_value) if "cpu" in metric_name.lower() else float(ram_value)
 
     for server, result in forecast_results.items():
         forecast_df = result['forecast']
@@ -516,22 +667,34 @@ def create_summary_table(forecast_results, as_name, metric):
         else:
             risk_level = "🟩 Низкий"
 
-        quality_mae = result.get('quality_mae')
+        quality_mape = result.get('quality_mape')
         quality_method = result.get('quality_method', 'unknown')
-        quality_label = "—" if quality_mae is None else f"{quality_mae:.3f}"
+        quality_label = "—" if quality_mape is None else f"{quality_mape:.2f}%"
+
+        capacity_value = get_capacity_value(server, metric)
+        capacity_label = (
+            f"{capacity_value:.0f} vCPU" if "cpu" in metric.lower()
+            else f"{capacity_value:.0f} GB"
+        )
 
         summary_data.append({
             'Сервер': server,
+            'Мощность': capacity_label,
             'Средняя': f"{avg_forecast:.1f}%",
             'Максимум': f"{max_forecast:.1f}%",
             'Минимум': f"{min_forecast:.1f}%",
             'Пик в': peak_time.strftime('%d.%m %H:%M'),
             'Риск': risk_level,
-            'MAE': quality_label,
+            'MAPE': quality_label,
             'Метод оценки': quality_method
         })
 
-    return pd.DataFrame(summary_data)
+    df = pd.DataFrame(summary_data)
+    if not df.empty:
+        df['capacity_numeric'] = df['Сервер'].apply(lambda s: get_capacity_value(s, metric))
+        df = df.sort_values(['capacity_numeric', 'Максимум'], ascending=[False, False])
+        df = df.drop(columns=['capacity_numeric'])
+    return df
 
 
 def show():
@@ -546,6 +709,9 @@ def show():
         if not as_mapping:
             st.error("⚠️ Не удалось загрузить данные об АС")
             return
+
+        with st.spinner("Загружаем мощности серверов..."):
+            server_capacities = load_server_capacities()
 
         # Получаем список уникальных АС
         all_as = sorted(set(as_mapping.values()))
@@ -654,15 +820,89 @@ def show():
                 progress_bar = st.progress(0)
                 status_text = st.empty()
 
+                if show_individual:
+                    st.markdown("### 📈 Индивидуальные прогнозы (по мере готовности)")
+                    individual_container = st.container()
+                else:
+                    individual_container = None
+
                 with st.spinner("Генерируем прогнозы..."):
-                    # Генерируем прогнозы для всех серверов
-                    forecast_results = generate_forecast_for_as(
-                        selected_as,
-                        servers_data,
-                        selected_metric,
-                        forecast_days,
-                        as_mapping
-                    )
+                    forecast_results = {}
+                    total_servers = len(servers_in_as)
+                    shown_count = 0
+
+                    for idx, server in enumerate(servers_in_as, start=1):
+                        status_text.text(
+                            f"Прогнозируем {server} ({idx}/{total_servers})"
+                        )
+                        progress_bar.progress(int(idx / total_servers * 100))
+
+                        prophet_df = prepare_data_for_prophet(
+                            servers_data,
+                            selected_metric,
+                            server
+                        )
+                        if prophet_df.empty:
+                            continue
+
+                        try:
+                            forecast, model, quality_mape, quality_mae, quality_rmse, quality_method = generate_forecast_for_server(
+                                prophet_df,
+                                forecast_days,
+                                server,
+                                selected_metric
+                            )
+
+                            forecast_results[server] = {
+                                'forecast': forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']],
+                                'model': model,
+                                'history': prophet_df,
+                                'quality_mape': quality_mape,
+                                'quality_mae': quality_mae,
+                                'quality_rmse': quality_rmse,
+                                'quality_method': quality_method
+                            }
+
+                            if individual_container and shown_count < max_servers_to_show:
+                                capacity_label = get_server_capacity_label(
+                                    server,
+                                    server_capacities,
+                                    selected_metric
+                                )
+                                with individual_container:
+                                    st.markdown(f"#### Сервер: {server} ({capacity_label})")
+                                    quality_mape = forecast_results[server].get('quality_mape')
+                                    quality_mae = forecast_results[server].get('quality_mae')
+                                    quality_rmse = forecast_results[server].get('quality_rmse')
+                                    parts = []
+                                    if quality_mape is not None:
+                                        parts.append(f"MAPE {quality_mape:.2f}%")
+                                    if quality_mae is not None:
+                                        parts.append(f"MAE {quality_mae:.2f}")
+                                    if quality_rmse is not None:
+                                        parts.append(f"RMSE {quality_rmse:.2f}")
+                                    metrics_label = "Метрики качества: " + (", ".join(parts) if parts else "—")
+                                    st.caption(metrics_label)
+
+                                    fig = create_forecast_plot(
+                                        server,
+                                        forecast_results,
+                                        selected_metric,
+                                        selected_as,
+                                        capacity_label=capacity_label
+                                    )
+                                    if fig:
+                                        st.plotly_chart(fig, use_container_width=True)
+                                    if shown_count < max_servers_to_show - 1:
+                                        st.divider()
+                                shown_count += 1
+
+                        except Exception as e:
+                            st.warning(f"Ошибка прогноза для сервера {server}: {e}")
+                            continue
+
+                    progress_bar.progress(100)
+                    status_text.text("Прогнозирование завершено")
 
                 if not forecast_results:
                     st.error("⚠️ Не удалось сгенерировать прогнозы")
@@ -697,7 +937,12 @@ def show():
 
                 # Сводная таблица
                 st.markdown("### 📋 Сводная таблица прогнозов")
-                summary_df = create_summary_table(forecast_results, selected_as, selected_metric)
+                summary_df = create_summary_table(
+                    forecast_results,
+                    selected_as,
+                    selected_metric,
+                    server_capacities=server_capacities
+                )
 
                 # Сортировка по риску и максимальной нагрузке
                 def risk_sort_key(row):
@@ -705,45 +950,37 @@ def show():
                     return risk_map.get(row['Риск'], 4)
 
                 summary_df['risk_numeric'] = summary_df.apply(risk_sort_key, axis=1)
-                summary_df = summary_df.sort_values(['risk_numeric', 'Максимум'], ascending=[True, False])
                 summary_df = summary_df.drop('risk_numeric', axis=1)
+
+                def mape_color(val: str) -> str:
+                    try:
+                        if not val or val == "—":
+                            return ""
+                        num = float(str(val).replace('%', '').strip())
+                    except Exception:
+                        return ""
+                    if num <= 10:
+                        return "background-color: #d9ead3"
+                    if num <= 20:
+                        return "background-color: #fff2cc"
+                    if num <= 30:
+                        return "background-color: #ffe6cc"
+                    return "background-color: #ffcccc"
 
                 # Отображаем таблицу с цветовым кодированием
                 st.dataframe(
-                    summary_df.style.apply(
+                    summary_df.style
+                    .apply(
                         lambda x: ['background-color: #ffcccc' if 'Критический' in str(v) else
                                    'background-color: #ffe6cc' if 'Высокий' in str(v) else
                                    'background-color: #fff2cc' if 'Средний' in str(v) else
                                    'background-color: #d9ead3' for v in x],
                         subset=['Риск']
-                    ),
+                    )
+                    .applymap(mape_color, subset=['MAPE']),
                     use_container_width=True,
                     height=400
                 )
-
-                # Индивидуальные графики
-                if show_individual and forecast_results:
-                    st.markdown("### 📈 Индивидуальные прогнозы")
-
-                    # Ограничиваем количество отображаемых графиков
-                    servers_to_show = list(forecast_results.keys())[:max_servers_to_show]
-
-                    for i, server in enumerate(servers_to_show):
-                        st.markdown(f"#### Сервер: {server}")
-
-                        fig = create_forecast_plot(
-                            server,
-                            forecast_results,
-                            selected_metric,
-                            selected_as
-                        )
-
-                        if fig:
-                            st.plotly_chart(fig, use_container_width=True)
-
-                        # Разделитель между серверами
-                        if i < len(servers_to_show) - 1:
-                            st.divider()
 
                 # Агрегированный прогноз по АС
                 st.markdown("### 📊 Агрегированный прогноз по АС")

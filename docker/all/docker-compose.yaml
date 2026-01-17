@@ -89,7 +89,7 @@ services:
     environment:
       GGML_CPU_N_THREADS: 16
     command: >
-      --model /work/models/Falcon-H1R-7B-UD-Q8_K_XL.gguf
+      --model /work/models/Qwen3-8B-Q6_K.gguf
       --port 8080
       --host 0.0.0.0
       --ctx-size 2048

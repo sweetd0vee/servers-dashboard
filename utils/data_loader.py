@@ -124,7 +124,8 @@ def insert_data(df: pd.DataFrame):
 
 
 def main():
-    filepath = r'C:\Users\audit\Work\Arina\Servers\dashboard\data\processed\data08_01-11_01.xlsx'
+    # filepath = r'/Users/sweetd0ve/servers-dashboard/data/dbdata/data_06_01-11_01.xlsx'
+    filepath = r'/Users/sweetd0ve/servers-dashboard/data/dbdata/data_25_12-31_12.xlsx'
     df = read_excel_file(filepath)
     prepared_data = prepare_data(df)
     insert_data(prepared_data)
