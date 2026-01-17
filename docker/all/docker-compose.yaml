@@ -41,7 +41,7 @@ services:
         SERVICE_5432_CHECK_INTERVAL: 30s
         SERVICE_5432_CHECK_TIMEOUT: 5s
       volumes:
-        - ${DOCKER_SHARE_DIR:-./docker-share}/postgres-data-server:/var/lib/postgresql/data
+        - ${DOCKER_SHARE_DIR:-~/docker-share}/postgres-data-server:/var/lib/postgresql/data
       networks:
         - servers-network
       restart: unless-stopped
@@ -103,7 +103,7 @@ services:
     ports:
       - "8080:8080"
     volumes:
-      - ${DOCKER_SHARE_DIR:-./docker-share}/models:/work/models
+      - ${DOCKER_SHARE_DIR:-~/docker-share}/models:/work/models
     restart: unless-stopped
     networks:
       - servers-network

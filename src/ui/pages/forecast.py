@@ -972,4 +972,3 @@ def show():
         import traceback
         with st.expander("Детали ошибки"):
             st.code(traceback.format_exc())
-
