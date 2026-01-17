@@ -45,6 +45,12 @@ services:
       networks:
         - servers-network
       restart: unless-stopped
+      healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-server_metrics}"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+        start_period: 10s
 
 
 #   keycloak:
@@ -107,6 +113,16 @@ services:
     restart: unless-stopped
     networks:
       - servers-network
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "command -v curl >/dev/null 2>&1 && curl -fsS http://localhost:8080/health >/dev/null || command -v wget >/dev/null 2>&1 && wget -qO- http://localhost:8080/health >/dev/null || command -v nc >/dev/null 2>&1 && nc -z localhost 8080 || exit 1",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
 #-------------------------------------------------------------------
 

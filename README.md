@@ -1,21 +1,22 @@
 <!--
-README по лучшим практикам: структура, четкие шаги запуска,
-прозрачные конфигурации и ссылки на подробную документацию.
+README follows best practices: clear structure, launch steps,
+transparent configuration, and links to deeper docs.
 -->
 
 # AIOps Dashboard
 
-Платформа мониторинга и прогнозирования нагрузки серверов: сбор метрик, аналитика и прогнозы временных рядов в одном интерфейсе.
+Monitoring and forecasting platform for server load: metrics collection,
+analytics, and time-series prediction in one UI.
 
-## Быстрый старт
+## Quick start
 
-### Docker (рекомендуется для первого запуска)
+### Docker (recommended first run)
 ```bash
 cd docker/all
 docker-compose up -d
 ```
 
-#### Docker для Windows/macOS
+#### Docker for Windows/macOS
 Windows (PowerShell/cmd):
 ```bat
 docker\all\docker-compose-up.bat
@@ -28,11 +29,11 @@ macOS/Linux:
 ./docker/all/docker-compose-down.sh
 ```
 
-После старта:
+After startup:
 - API: `http://localhost:8000` (Swagger: `/docs`, ReDoc: `/redoc`)
 - UI: `http://localhost:8501`
 
-### Локально (без Docker)
+### Local (without Docker)
 ```bash
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
@@ -51,51 +52,51 @@ cd ../ui
 streamlit run main.py --server.port 8501
 ```
 
-## Содержание
+## Table of contents
 
-- [Ключевые возможности](#ключевые-возможности)
-- [Архитектура](#архитектура)
-- [Требования](#требования)
-- [Конфигурация](#конфигурация)
-- [Запуск](#запуск)
+- [Key features](#key-features)
+- [Architecture](#architecture)
+- [Requirements](#requirements)
+- [Configuration](#configuration)
+- [Run](#run)
 - [API](#api)
-- [Работа с данными](#работа-с-данными)
-- [Разработка](#разработка)
-- [Тестирование](#тестирование)
-- [Деплой](#деплой)
-- [Лучшие практики](#лучшие-практики)
+- [Data workflows](#data-workflows)
+- [Development](#development)
+- [Testing](#testing)
+- [Deployment](#deployment)
+- [Best practices](#best-practices)
 - [Troubleshooting](#troubleshooting)
-- [Документация](#документация)
-- [Вклад в проект](#вклад-в-проект)
-- [Лицензия](#лицензия)
+- [Documentation](#documentation)
+- [Contributing](#contributing)
+- [License](#license)
 
-## Ключевые возможности
+## Key features
 
-- Мониторинг метрик (CPU, память, диск, сеть) и визуализация исторических данных
-- Прогнозирование временных рядов (Prophet) с доверительными интервалами
-- Аналитика по серверам и метрикам, сравнение факта и прогноза
-- Интеграция с Keycloak (опционально) для SSO
+- Monitoring metrics (CPU, memory, disk, network) with historical visualization
+- Time-series forecasting with Prophet and confidence intervals
+- Server and metric analytics, actual vs predicted comparisons
+- Optional Keycloak SSO integration for the UI
 
-## Архитектура
+## Architecture
 
-Сервис разделен на три основные части:
+The system consists of three main parts:
 - `src/app` — REST API (FastAPI)
-- `src/ui` — веб-интерфейс (Streamlit)
-- `forecast` — прогнозирование и ML-логика
+- `src/ui` — web UI (Streamlit)
+- `notebooks/forecast` — forecasting/ML utilities
 
-Подробности: `docs/ARCHITECTURE.md` и `docs/ARCHITECTURE_SUMMARY.md`.
+Details: `docs/ARCHITECTURE.md` and `docs/ARCHITECTURE_SUMMARY.md`.
 
-## Требования
+## Requirements
 
 - Python 3.12+
-- PostgreSQL 16+ (или Docker)
-- Docker + Docker Compose (для контейнерного запуска)
+- PostgreSQL 16+ (or Docker)
+- Docker + Docker Compose (for containerized run)
 
-## Конфигурация
+## Configuration
 
-### Переменные окружения (API)
+### Environment variables (API)
 
-API читает настройки БД из `.env` в корне проекта или из переменных окружения:
+The API reads DB settings from `.env` or environment variables:
 
 ```env
 DB_HOST=localhost
@@ -105,11 +106,9 @@ DB_PASSWORD=postgres
 DB_NAME=server_metrics
 ```
 
-См. `src/app/connection.py`.
+See `src/app/connection.py`.
 
-### Keycloak (опционально, для UI)
-
-Используются переменные:
+### Keycloak (optional, UI)
 
 ```env
 KEYCLOAK_URL=http://localhost:8087/keycloak
@@ -120,33 +119,33 @@ KEYCLOAK_CLIENT_ID=srv-keycloak-client
 KEYCLOAK_CLIENT_SECRET=change-me
 ```
 
-См. `src/ui/auth.py`.
+See `src/ui/auth.py`.
 
-## Запуск
+## Run
 
 ### Docker
 
-Полный стек:
+Full stack:
 ```bash
 cd docker/all
 docker-compose up -d
 ```
 
-Остановка:
+Stop:
 ```bash
 cd docker/all
 docker-compose down
 ```
 
-### Локально
+### Local
 
-1) Запуск API:
+1) Start API:
 ```bash
 cd src/app
 uvicorn main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-2) Запуск UI:
+2) Start UI:
 ```bash
 cd src/ui
 streamlit run main.py --server.port 8501
@@ -154,26 +153,26 @@ streamlit run main.py --server.port 8501
 
 ## API
 
-Базовый URL: `http://localhost:8000/api/v1`
+Base URL: `http://localhost:8000/api/v1`
 
-Основные эндпоинты:
-- `GET /vms` — список ВМ
-- `GET /facts` — фактические метрики
-- `GET /predictions` — прогнозы
-- `GET /predictions/compare` — сравнение факт/прогноз
+Key endpoints:
+- `GET /vms` — list VMs
+- `GET /facts` — actual metrics
+- `GET /predictions` — forecasts
+- `GET /predictions/compare` — actual vs predicted
 
-Полный список: `docs/API_ENDPOINTS.md`.  
-Интерактивная документация: `http://localhost:8000/docs`.
+Full list: `docs/API_ENDPOINTS.md`  
+Interactive docs: `http://localhost:8000/docs`
 
-## Работа с данными
+## Data workflows
 
-- Источники данных и примеры файлов лежат в `data/`
-- Для загрузки данных из Excel/CSV используйте `utils/data_loader.py`
-- Рекомендуется хранить большие датасеты вне репозитория и загружать через API
+- Example data files live under `data/`
+- ETL helpers live in `utils/` (see `utils/new_data.py` and `utils/prepare_data.py`)
+- For large datasets, keep files outside Git and load via API or ETL
 
-## Разработка
+## Development
 
-### Установка зависимостей
+### Install dependencies
 
 ```bash
 pip install -r src/app/requirements.txt
@@ -181,68 +180,70 @@ pip install -r src/ui/requirements.txt
 pip install -r tests/requirements.txt
 ```
 
-Также доступен общий файл зависимостей: `reqirements.txt`.
+An aggregated list also exists: `reqirements.txt`.
 
-### Стиль и качество кода
+### Code style
 
-Рекомендуемые инструменты:
-- `black` — форматирование
-- `flake8` — линтинг
-- `mypy` — типизация
+Recommended tools:
+- `black` — formatting
+- `flake8` — linting
+- `mypy` — typing
+- `isort` — import sorting (`pyproject.toml`)
 
 ```bash
 black src/
 flake8 src/
 mypy src/
+python -m isort src tests utils notebooks
 ```
 
-## Тестирование
+## Testing
 
 ```bash
 pytest
 pytest --cov=src/app --cov-report=html
 ```
 
-Для Windows: `run_tests.bat`.
+Windows helper: `run_tests.bat`  
+Details: `docs/TESTING.md`
 
-Подробности: `docs/TESTING.md`.
+## Deployment
 
-## Деплой
+Production recommendations:
+- Restrict CORS in `src/app/main.py`
+- Use secrets via env/secret manager
+- Set up HTTPS at the reverse proxy layer (`docker/httpd`)
+- Enable centralized logging and metrics
 
-Рекомендации для production:
-- Ограничьте CORS в `src/app/main.py`
-- Используйте секреты через переменные окружения/секреты контейнеров
-- Настройте HTTPS на уровне reverse proxy (`docker/httpd`)
-- Включите централизованный сбор логов
+## Best practices
 
-## Лучшие практики
-
-- **Конфигурация**: храните секреты только в окружении, не в репозитории
-- **Данные**: большие файлы держите вне git, загружайте через API/ETL
-- **Наблюдаемость**: включайте структурированные логи и метрики
-- **Безопасность**: минимизируйте `allow_origins`, регулярно обновляйте зависимости
-- **Тесты**: покрывайте CRUD и сценарии прогнозирования, проверяйте миграции
+- **Configuration**: keep secrets in env only
+- **Data**: keep large files outside Git, load via API/ETL
+- **Observability**: structured logs and metrics
+- **Security**: minimize `allow_origins`, update dependencies regularly
+- **Tests**: cover CRUD + forecasting scenarios, validate migrations
 
 ## Troubleshooting
 
-- БД недоступна: проверьте `DB_*` и доступность `postgres`
-- API не отвечает: проверьте логи контейнера и порт `8000`
-- UI без данных: проверьте CORS и доступность API
+- DB unavailable: verify `DB_*` and `postgres` availability
+- API not responding: check container logs and port `8000`
+- UI has no data: verify CORS and API availability
 
-## Документация
+## Documentation
 
-- `docs/ARCHITECTURE.md` — архитектура
+- `docs/ARCHITECTURE.md` — architecture
 - `docs/API_ENDPOINTS.md` — API
-- `docs/TESTING.md` — тестирование
-- `docs/CODE_REVIEW.md` — обзор кода
+- `docs/TESTING.md` — testing
+- `docs/REVIEW_EN.md` — code review (EN)
+- `docs/REVIEW_RU.md` — code review (RU)
 
-## Вклад в проект
+## Contributing
 
-1. Создайте ветку `feature/*`
-2. Добавьте тесты и документацию
-3. Откройте Pull Request
+1. Create a `feature/*` branch
+2. Add tests and documentation
+3. Open a Pull Request
 
-## Лицензия
+## License
 
-MIT — см. `LICENSE`.
+MIT — see `LICENSE`.
 
