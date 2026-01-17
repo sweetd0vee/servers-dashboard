@@ -17,7 +17,7 @@ RUN mkdir /work/ui
 RUN mkdir /work/ui/assets
 RUN mkdir /work/ui/components
 RUN mkdir /work/ui/pages
-RUN mkdir /work/ui/utils
+RUN mkdir /work/ui/ETL
 
 #tmp use app, later it is a separate service
 RUN mkdir /work/app
