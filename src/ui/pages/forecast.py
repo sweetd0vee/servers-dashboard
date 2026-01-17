@@ -196,6 +196,201 @@ def prepare_data_for_prophet(df, metric, server_name=None):
         return pd.DataFrame()
 
 
+def generate_forecast_for_server(prophet_df: pd.DataFrame, forecast_days: int):
+    def add_time_features(df: pd.DataFrame) -> pd.DataFrame:
+        df = df.copy()
+        dt = df['ds']
+        df['hour'] = dt.dt.hour
+        df['day_of_week'] = dt.dt.dayofweek
+        df['day_of_month'] = dt.dt.day
+        df['week_of_year'] = dt.dt.isocalendar().week.astype(int)
+        df['month'] = dt.dt.month
+        df['quarter'] = dt.dt.quarter
+        df['is_weekend'] = (dt.dt.dayofweek >= 5).astype(int)
+        df['is_month_start'] = dt.dt.is_month_start.astype(int)
+        df['is_month_end'] = dt.dt.is_month_end.astype(int)
+        df['is_quarter_start'] = dt.dt.is_quarter_start.astype(int)
+        df['is_quarter_end'] = dt.dt.is_quarter_end.astype(int)
+        df['is_year_start'] = dt.dt.is_year_start.astype(int)
+        df['is_year_end'] = dt.dt.is_year_end.astype(int)
+        return df
+
+    def build_model(params: dict, feature_columns: list) -> Prophet:
+        model = Prophet(
+            daily_seasonality=params['daily_seasonality'],
+            weekly_seasonality=params['weekly_seasonality'],
+            yearly_seasonality=params['yearly_seasonality'],
+            seasonality_mode=params['seasonality_mode'],
+            changepoint_prior_scale=params['changepoint_prior_scale'],
+            seasonality_prior_scale=params['seasonality_prior_scale'],
+            holidays_prior_scale=params['holidays_prior_scale'],
+            changepoint_range=params['changepoint_range'],
+            n_changepoints=params['n_changepoints'],
+        )
+        for col in feature_columns:
+            model.add_regressor(col)
+        return model
+
+    # Добавляем расширенные временные признаки
+    prophet_df = add_time_features(prophet_df)
+    feature_columns = [
+        'hour',
+        'day_of_week',
+        'day_of_month',
+        'week_of_year',
+        'month',
+        'quarter',
+        'is_weekend',
+        'is_month_start',
+        'is_month_end',
+        'is_quarter_start',
+        'is_quarter_end',
+        'is_year_start',
+        'is_year_end',
+    ]
+
+    def evaluate_with_holdout(train_data: pd.DataFrame, val_data: pd.DataFrame, params: dict) -> float:
+        model = build_model(params, feature_columns)
+        model.fit(train_data)
+        val_forecast = model.predict(val_data[['ds'] + feature_columns])
+        val_actual = val_data['y'].values
+        val_pred = val_forecast['yhat'].values
+        return float(np.mean(np.abs(val_actual - val_pred)))
+
+    def evaluate_with_cv(data: pd.DataFrame, params: dict, n_splits: int, horizon_points: int) -> float:
+        maes = []
+        total_points = len(data)
+        for split_idx in range(1, n_splits + 1):
+            train_end = total_points - horizon_points * (n_splits - split_idx + 1)
+            train_df = data.iloc[:train_end]
+            val_df = data.iloc[train_end:train_end + horizon_points]
+            if len(train_df) < 4 or len(val_df) < 4:
+                continue
+            try:
+                mae = evaluate_with_holdout(train_df, val_df, params)
+                maes.append(mae)
+            except Exception:
+                continue
+        if not maes:
+            return np.inf
+        return float(np.mean(maes))
+
+    # Подготовка train/val разбиения для подбора гиперпараметров
+    prophet_df = prophet_df.sort_values('ds')
+    total_points = len(prophet_df)
+    yearly_seasonality = (prophet_df['ds'].max() - prophet_df['ds'].min()).days >= 365
+
+    if total_points < 8:
+        fallback_params = {
+            'daily_seasonality': True,
+            'weekly_seasonality': True,
+            'yearly_seasonality': yearly_seasonality,
+            'seasonality_mode': 'additive',
+            'changepoint_prior_scale': 0.05,
+            'seasonality_prior_scale': 10.0,
+            'holidays_prior_scale': 10.0,
+            'changepoint_range': 0.9,
+            'n_changepoints': 25,
+        }
+        best_model = build_model(fallback_params, feature_columns)
+        best_model.fit(prophet_df)
+
+        forecast_hours = forecast_days * 24
+        future = best_model.make_future_dataframe(
+            periods=forecast_hours * 2,
+            freq='30min',
+            include_history=False
+        )
+        future = add_time_features(future)
+        forecast = best_model.predict(future[['ds'] + feature_columns])
+        return forecast, best_model, None, "default"
+
+    val_size = max(10, int(total_points * 0.2))
+    val_size = min(val_size, total_points - 4)
+
+    train_df = prophet_df.iloc[:-val_size].copy()
+    val_df = prophet_df.iloc[-val_size:].copy()
+
+    # Сетка гиперпараметров
+    param_grid = [
+        {
+            'daily_seasonality': True,
+            'weekly_seasonality': True,
+            'yearly_seasonality': yearly_seasonality,
+            'seasonality_mode': seasonality_mode,
+            'changepoint_prior_scale': cps,
+            'seasonality_prior_scale': sps,
+            'holidays_prior_scale': hps,
+            'changepoint_range': cpr,
+            'n_changepoints': ncp,
+        }
+        for seasonality_mode in ['additive', 'multiplicative']
+        for cps in [0.01, 0.05, 0.1, 0.2]
+        for sps in [3.0, 5.0, 10.0, 15.0]
+        for hps in [5.0, 10.0]
+        for cpr in [0.8, 0.9, 0.95]
+        for ncp in [15, 25, 35]
+    ]
+
+    # Подбор лучшей модели по MAE на валидации или кросс-валидации
+    best_score = np.inf
+    best_params = None
+    best_model = None
+
+    # Определяем, когда уместна кросс-валидация
+    horizon_points = max(8, min(48, int(total_points * 0.1)))
+    max_splits = total_points // (horizon_points * 2)
+    n_splits = min(4, max(2, max_splits))
+    use_cv = n_splits >= 2 and total_points >= (horizon_points * (n_splits + 1))
+    eval_method = "cv" if use_cv else "holdout"
+
+    for params in param_grid:
+        try:
+            if use_cv:
+                mae = evaluate_with_cv(prophet_df, params, n_splits, horizon_points)
+            else:
+                mae = evaluate_with_holdout(train_df, val_df, params)
+
+            if mae < best_score:
+                best_score = mae
+                best_params = params
+        except Exception:
+            continue
+
+    # Если оптимизация не удалась, используем базовые параметры
+    if best_params is None:
+        fallback_params = {
+            'daily_seasonality': True,
+            'weekly_seasonality': True,
+            'yearly_seasonality': yearly_seasonality,
+            'seasonality_mode': 'additive',
+            'changepoint_prior_scale': 0.05,
+            'seasonality_prior_scale': 10.0,
+            'holidays_prior_scale': 10.0,
+            'changepoint_range': 0.9,
+            'n_changepoints': 25,
+        }
+        best_model = build_model(fallback_params, feature_columns)
+        best_model.fit(prophet_df)
+    else:
+        # Переобучаем лучшую модель на всех данных
+        best_model = build_model(best_params, feature_columns)
+        best_model.fit(prophet_df)
+
+    # Создаем фрейм для прогноза
+    forecast_hours = forecast_days * 24
+    future = best_model.make_future_dataframe(
+        periods=forecast_hours * 2,
+        freq='30min',
+        include_history=False
+    )
+    future = add_time_features(future)
+
+    # Генерируем прогноз
+    forecast = best_model.predict(future[['ds'] + feature_columns])
+    return forecast, best_model, best_score, eval_method
+
+
 def generate_forecast_for_as(as_name, servers_data, metric, forecast_days, as_mapping):
     """Генерирует прогноз для всех серверов АС"""
     results = {}
@@ -208,36 +403,18 @@ def generate_forecast_for_as(as_name, servers_data, metric, forecast_days, as_ma
             continue
 
         try:
-            # Создаем и настраиваем модель Prophet
-            model = Prophet(
-                daily_seasonality=True,
-                weekly_seasonality=True,
-                yearly_seasonality=False,
-                seasonality_mode='additive',
-                changepoint_prior_scale=0.05
+            forecast, model, quality_mae, quality_method = generate_forecast_for_server(
+                prophet_df,
+                forecast_days
             )
-
-            # Добавляем дополнительные регрессоры (часы, дни недели)
-            prophet_df['hour'] = prophet_df['ds'].dt.hour
-            prophet_df['day_of_week'] = prophet_df['ds'].dt.dayofweek
-
-            # Обучаем модель
-            model.fit(prophet_df)
-
-            # Создаем фрейм для прогноза
-            forecast_hours = forecast_days * 24
-            future = model.make_future_dataframe(periods=forecast_hours, freq='H', include_history=False)
-            future['hour'] = future['ds'].dt.hour
-            future['day_of_week'] = future['ds'].dt.dayofweek
-
-            # Генерируем прогноз
-            forecast = model.predict(future)
 
             # Сохраняем результаты
             results[server] = {
                 'forecast': forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']],
                 'model': model,
-                'history': prophet_df
+                'history': prophet_df,
+                'quality_mae': quality_mae,
+                'quality_method': quality_method
             }
 
         except Exception as e:
@@ -339,13 +516,19 @@ def create_summary_table(forecast_results, as_name, metric):
         else:
             risk_level = "🟩 Низкий"
 
+        quality_mae = result.get('quality_mae')
+        quality_method = result.get('quality_method', 'unknown')
+        quality_label = "—" if quality_mae is None else f"{quality_mae:.3f}"
+
         summary_data.append({
             'Сервер': server,
             'Средняя': f"{avg_forecast:.1f}%",
             'Максимум': f"{max_forecast:.1f}%",
             'Минимум': f"{min_forecast:.1f}%",
             'Пик в': peak_time.strftime('%d.%m %H:%M'),
-            'Риск': risk_level
+            'Риск': risk_level,
+            'MAE': quality_label,
+            'Метод оценки': quality_method
         })
 
     return pd.DataFrame(summary_data)
