@@ -1,15 +1,16 @@
-import streamlit as st
-import pandas as pd
-import plotly.graph_objects as go
-from datetime import datetime, timedelta
-import sys
+import logging
 import os
-import numpy as np
-from plotly.subplots import make_subplots
+import sys
 import warnings
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from prophet import Prophet
+from datetime import datetime, timedelta
 
+import numpy as np
+import pandas as pd
+import plotly.graph_objects as go
+import streamlit as st
+from plotly.subplots import make_subplots
+from prophet import Prophet
 
 warnings.filterwarnings('ignore')
 
@@ -19,13 +20,15 @@ parent_dir = os.path.dirname(current_dir)
 repo_root = os.path.abspath(os.path.join(current_dir, "..", "..", ".."))
 sys.path.append(parent_dir)
 
+logger = logging.getLogger(__name__)
+
 # Импортируем модули для загрузки данных из базы
 try:
-    from utils.data_loader import load_data_from_database, generate_server_data
-    from utils.base_logger import logger
     from app.prophet_forecaster import ProphetForecaster
+    from utils.base_logger import logger
+    from utils.data_loader import generate_server_data, load_data_from_database
 except ImportError as e:
-    logger.info(f"Ошибка импорта: {e}")
+    logger.warning(f"Ошибка импорта: {e}")
 
 
 # Импортируем модули для работы с базой данных

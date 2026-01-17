@@ -1,8 +1,6 @@
-import pandas as pd
 import os
 
 import pandas as pd
-import os
 
 
 def read_csv_special(file_path: str):

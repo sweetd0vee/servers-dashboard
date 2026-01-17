@@ -1,17 +1,18 @@
-from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
-from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
-from datetime import datetime, timedelta
 import asyncio
+from datetime import datetime, timedelta
 from typing import List, Optional
 
-from connection import get_db, engine
 import models as db_models
+from connection import engine, get_db
 # from . import schemas as pydantic_models
 # from .crud import DBCRUD
 # from prophet_service import ProphetForecaster
 # from anomaly_detector import AnomalyDetector
 from endpoints import router as api_router
+from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+
 from base_logger import logger
 
 # Создание таблиц

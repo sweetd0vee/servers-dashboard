@@ -1,8 +1,9 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from datetime import datetime, timedelta
+
 import pandas as pd
 from dbcrud import DBCRUD
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 # Создание сессии
 engine = create_engine('postgresql://postgres:postgres@localhost:5432/server_metrics')

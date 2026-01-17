@@ -3,11 +3,13 @@
 Соответствующие таблицам server_metrics_fact и server_metrics_predictions в PostgreSQL.
 """
 
+import uuid
+
 from connection import Base, engine
-from sqlalchemy import Column, DateTime, DECIMAL, String, UniqueConstraint, Index, CheckConstraint, text
+from sqlalchemy import (DECIMAL, CheckConstraint, Column, DateTime, Index,
+                        String, UniqueConstraint, text)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
-import uuid
 
 
 class ServerMetricsFact(Base):

@@ -7,19 +7,21 @@ This module provides RESTful API endpoints for:
 - Predictions CRUD operations
 - Legacy endpoints for backward compatibility
 """
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Query, Body, status
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import SQLAlchemyError, IntegrityError
 from datetime import datetime, timedelta
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
-from connection import get_db
+import models as db_models
 import schemas as pydantic_models
+from connection import get_db
 from dbcrud import DBCRUD
 from facts_crud import FactsCRUD
+from fastapi import (APIRouter, BackgroundTasks, Body, Depends, HTTPException,
+                     Query, status)
 from preds_crud import PredsCRUD
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.orm import Session
+
 from base_logger import logger
-import models as db_models
 
 router = APIRouter()
 

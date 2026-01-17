@@ -1,18 +1,19 @@
-import streamlit as st
+import base64
+import json
+import os
+import sys
+import tempfile
+from datetime import datetime, timedelta
+
+import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from datetime import datetime, timedelta
-import os
-import sys
-import requests
-import numpy as np
 import plotly.io as pio
-import base64
-import tempfile
-import json
+import requests
+import streamlit as st
 from jinja2 import Template
+from plotly.subplots import make_subplots
 
 # Добавляем путь для импорта
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -21,7 +22,7 @@ sys.path.append(parent_dir)
 
 # Импортируем модули для загрузки данных из базы
 try:
-    from utils.data_loader import load_data_from_database, generate_server_data
+    from utils.data_loader import generate_server_data, load_data_from_database
 except ImportError:
     # Fallback для прямого импорта
     import importlib.util

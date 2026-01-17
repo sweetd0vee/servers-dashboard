@@ -1,22 +1,22 @@
 """
 Pytest configuration and fixtures
 """
-import pytest
 import os
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import StaticPool
-from datetime import datetime, timedelta
 import sys
+from datetime import datetime, timedelta
 from pathlib import Path
+
+import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 # Add src/app to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src" / "app"))
 
-from connection import Base, get_db
 import models as db_models
 import schemas as pydantic_models
-
+from connection import Base, get_db
 
 # Test database URL (SQLite in-memory for testing)
 TEST_DATABASE_URL = "sqlite:///:memory:"

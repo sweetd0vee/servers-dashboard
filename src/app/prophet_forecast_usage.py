@@ -1,7 +1,7 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from facts_crud import DBCRUD
 from prophet_forecaster import ProphetForecaster
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 # Настройка базы данных
 DATABASE_URL = "postgresql://postgres:postgres@localhost:5432/server_metrics"

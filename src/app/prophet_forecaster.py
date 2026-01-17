@@ -1,17 +1,18 @@
+import json
+import logging
+import os
 import pickle
-import pandas as pd
+import random
+from datetime import datetime, timedelta
+from itertools import product
+from typing import Any, Dict, List, Optional, Tuple
+
 import numpy as np
+import pandas as pd
+from dbcrud import DBCRUD
 from prophet import Prophet
 from prophet.diagnostics import cross_validation, performance_metrics
-from datetime import datetime, timedelta
-import os
-import json
-from typing import Dict, List, Optional, Tuple, Any
-import logging
-from itertools import product
-import random
 from sqlalchemy.orm import Session
-from facts_crud import DBCRUD
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

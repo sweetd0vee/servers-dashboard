@@ -1,11 +1,12 @@
 """
 Unit tests for FactsCRUD class
 """
-import pytest
 from datetime import datetime, timedelta
-from facts_crud import FactsCRUD
+
 import models as db_models
+import pytest
 import schemas as pydantic_models
+from facts_crud import FactsCRUD
 
 
 class TestFactsCRUD:

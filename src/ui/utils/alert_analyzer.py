@@ -1,10 +1,11 @@
-import pandas as pd
-import numpy as np
 from datetime import datetime
 from enum import Enum
-from typing import List, Dict, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
 import streamlit as st
-from alert_rules import ServerStatus, AlertSeverity
+from alert_rules import AlertSeverity, ServerStatus
 
 
 class Alert:

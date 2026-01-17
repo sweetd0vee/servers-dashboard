@@ -1,14 +1,15 @@
-import random
 import logging
-from typing import Dict, Any, List, Optional
+import random
 from itertools import product
-from prophet import Prophet
-from prophet.diagnostics import cross_validation, performance_metrics
+from typing import Any, Dict, List, Optional
+
 import numpy as np
 import pandas as pd
-from .config import DEFAULT_PARAM_GRID, CONDITIONAL_SEASONALITIES
-from .evaluation import calculate_simple_metrics
+from prophet import Prophet
+from prophet.diagnostics import cross_validation, performance_metrics
 
+from .config import CONDITIONAL_SEASONALITIES, DEFAULT_PARAM_GRID
+from .evaluation import calculate_simple_metrics
 
 logger = logging.getLogger(__name__)
 

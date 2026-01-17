@@ -1,7 +1,8 @@
 import streamlit as st
+from auth import get_current_user, has_role, require_auth
+
 # from assets.style import apply_custom_styles
 
-from auth import require_auth, get_current_user, has_role
 
 # import os
 # from dotenv import load_dotenv
@@ -34,10 +35,10 @@ def apply_custom_styles():
 # Применение стилей
 apply_custom_styles()
 
+from components.footer import show_footer
 # Импорт компонентов
 from components.header import show_header
 from components.sidebar import show_sidebar
-from components.footer import show_footer
 
 
 def main():
@@ -48,7 +49,7 @@ def main():
     tab1, tab2, tab3, tab4 = st.tabs(["📈 **Факт**", "🔮 **Прогноз**", "🔧 **АС анализ**", "🔍 **Сервер анализ**"])
 
     # Импорт страниц
-    from pages import fact, forecast, analysis, as_analysis
+    from pages import analysis, as_analysis, fact, forecast
 
     # Вкладка 1: Факт
     with tab1:

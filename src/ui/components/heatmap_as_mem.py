@@ -2,12 +2,13 @@
 Memory Heatmap Component for AS Analysis
 Creates heatmaps grouped by Application System (AS) showing all servers for each AS
 """
+from datetime import datetime
+from typing import Dict, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
-import pandas as pd
-import numpy as np
-from typing import Dict, List, Tuple, Optional
-from datetime import datetime
 
 
 def create_as_mem_heatmap(

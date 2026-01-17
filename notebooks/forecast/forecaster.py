@@ -1,16 +1,18 @@
-import os
 import logging
-from typing import Optional, Dict, Any, List, Tuple
+import os
 from datetime import timedelta
+from typing import Any, Dict, List, Optional, Tuple
+
 from prophet import Prophet
 from sqlalchemy.orm import Session
-from .config import MODEL_STORAGE_PATH, DEFAULT_PARAM_GRID
-from .utils import prepare_data
-from .model_tuning import tune_hyperparameters
-from .model_training import train_model
+
+from .config import DEFAULT_PARAM_GRID, MODEL_STORAGE_PATH
 from .model_prediction import predict
-from .storage import load_model_with_metadata, find_latest_model, cleanup_old_models
-from .utils import now_utc
+from .model_training import train_model
+from .model_tuning import tune_hyperparameters
+from .storage import (cleanup_old_models, find_latest_model,
+                      load_model_with_metadata)
+from .utils import now_utc, prepare_data
 
 logger = logging.getLogger(__name__)
 

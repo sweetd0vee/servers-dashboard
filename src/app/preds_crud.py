@@ -1,9 +1,10 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import desc, and_, func
 from datetime import datetime, timedelta
-from typing import List, Optional, Dict, Tuple
+from typing import Dict, List, Optional, Tuple
+
 import models as db_models
 import schemas as pydantic_models
+from sqlalchemy import and_, desc, func
+from sqlalchemy.orm import Session
 
 
 class PredsCRUD:
@@ -97,8 +98,8 @@ class PredsCRUD:
                     metric=pred['metric'],
                     timestamp=pred['timestamp'],
                     value=pred['value'],
-                    lower=pred.get('lower'),
-                    upper=pred.get('upper')
+                    lower_bound=pred.get('lower') if 'lower' in pred else pred.get('lower_bound'),
+                    upper_bound=pred.get('upper') if 'upper' in pred else pred.get('upper_bound')
                 )
                 saved_count += 1
             except Exception as e:

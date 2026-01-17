@@ -1,7 +1,8 @@
+from datetime import datetime, timedelta
+
+from facts_crud import FactsCRUD
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from datetime import datetime, timedelta
-from facts_crud import FactsCRUD
 
 # Создание сессии
 engine = create_engine('postgresql://postgres:postgres@localhost:5432/server_metrics')

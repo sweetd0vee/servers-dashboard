@@ -1,10 +1,11 @@
 """
 Unit tests for PredsCRUD class
 """
-import pytest
 from datetime import datetime, timedelta
-from preds_crud import PredsCRUD
+
 import models as db_models
+import pytest
+from preds_crud import PredsCRUD
 
 
 class TestPredsCRUD:

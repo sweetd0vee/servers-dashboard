@@ -1,8 +1,9 @@
+import logging
+
 import numpy as np
 import pandas as pd
 from prophet import Prophet
 from prophet.diagnostics import cross_validation, performance_metrics
-import logging
 
 logger = logging.getLogger(__name__)
 

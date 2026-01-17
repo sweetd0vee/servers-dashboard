@@ -1,12 +1,12 @@
-import psycopg2
+import logging
+import uuid
+from datetime import datetime
+
 import pandas as pd
+import psycopg2
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-import logging
-from datetime import datetime
-import uuid
 from tqdm import tqdm
-
 
 # Конфигурация базы данных
 DB_CONFIG = {

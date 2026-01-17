@@ -1,8 +1,8 @@
 import asyncio
 import concurrent.futures
-import streamlit as st
 from functools import partial
 
+import streamlit as st
 
 # Настройка страницы
 st.set_page_config(
@@ -38,10 +38,10 @@ def apply_custom_styles():
 # Применение стилей
 apply_custom_styles()
 
+from components.footer import show_footer
 # Импорт компонентов
 from components.header import show_header
 from components.sidebar import show_sidebar
-from components.footer import show_footer
 
 
 def main():
@@ -52,8 +52,8 @@ def main():
     tab1, tab2, tab3, tab4 = st.tabs(["📈 Факт", "🔍 Сервер анализ", "🔧 АС анализ", "🔮 Прогноз"])
 
     # Импорт страниц
-    from pages import fact, forecast, analysis, as_analysis
-    
+    from pages import analysis, as_analysis, fact, forecast
+
     # Инициализация session_state для хранения результатов
     if 'tab_results' not in st.session_state:
         st.session_state.tab_results = {}
@@ -139,8 +139,8 @@ async def main_async():
     tab1, tab2, tab3, tab4 = st.tabs(["📈 Факт", "🔍 Сервер анализ", "🔧 АС анализ", "🔮 Прогноз"])
     
     # Импорт страниц
-    from pages import fact, forecast, analysis, as_analysis
-    
+    from pages import analysis, as_analysis, fact, forecast
+
     # Создаем задачи для параллельной загрузки данных
     tasks = [
         asyncio.create_task(fact.load_data_async()),

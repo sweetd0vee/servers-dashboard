@@ -1,11 +1,12 @@
-import pandas as pd
-import plotly.graph_objects as go
-import plotly.express as px
-from plotly.subplots import make_subplots
-import numpy as np
-from datetime import datetime
 import json
+from datetime import datetime
+
 import chardet
+import numpy as np
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 
 def detect_encoding(file_path):

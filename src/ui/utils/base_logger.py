@@ -1,7 +1,7 @@
 import logging
 import sys
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
 
 # Создаем директорию для логов если ее нет
 log_dir = Path("../logs")

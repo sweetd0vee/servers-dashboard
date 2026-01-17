@@ -1,9 +1,10 @@
-import streamlit as st
+import os
+import sys
+from datetime import datetime, timedelta
+
 import pandas as pd
 import plotly.graph_objects as go
-import sys
-import os
-from datetime import datetime, timedelta
+import streamlit as st
 
 # Добавляем путь для импорта
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -12,8 +13,8 @@ sys.path.append(parent_dir)
 
 # Импортируем модули для загрузки данных из базы
 try:
-    from utils.data_loader import load_data_from_database, generate_server_data
-    from utils.alert_rules import alert_system, ServerStatus, AlertSeverity
+    from utils.alert_rules import AlertSeverity, ServerStatus, alert_system
+    from utils.data_loader import generate_server_data, load_data_from_database
 except ImportError:
     # Fallback для прямого импорта
     import importlib.util

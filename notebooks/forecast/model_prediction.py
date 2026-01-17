@@ -1,6 +1,7 @@
-import pandas as pd
 import numpy as np
+import pandas as pd
 from prophet import Prophet
+
 from .config import CONDITIONAL_SEASONALITIES
 from .utils import add_time_features
 

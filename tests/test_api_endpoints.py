@@ -1,12 +1,13 @@
 """
 Integration tests for API endpoints
 """
-import pytest
-from fastapi.testclient import TestClient
 from datetime import datetime, timedelta
-from main import app
-from connection import get_db
+
 import models as db_models
+import pytest
+from connection import get_db
+from fastapi.testclient import TestClient
+from main import app
 
 
 @pytest.fixture
