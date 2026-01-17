@@ -4,8 +4,7 @@ import uuid
 
 import pandas as pd
 import psycopg2
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+from psycopg2.extras import execute_values
 from tqdm import tqdm
 
 
@@ -94,42 +93,61 @@ def prepare_data(df):
         raise
 
 
-def insert_data(df: pd.DataFrame):
-    connection = psycopg2.connect(
-        dbname=DB_CONFIG['database'],
-        user=DB_CONFIG['user'],
-        host=DB_CONFIG['host'],
-        port=DB_CONFIG['port'],
-        password=DB_CONFIG['password']
-    )
-    cur = connection.cursor()
-    for i in tqdm(range(len(df))):
-        row = list(df.iloc[i])
-        # date and created_date Timestamp object to string
-        row[2] = row[2].strftime('%Y-%m-%d %H:%M:%S')
-        row[-1] = row[-1].strftime('%Y-%m-%d %H:%M:%S')
-        row = tuple(row)
-        query = f"INSERT INTO server_metrics_fact (id, vm, timestamp, metric, value, created_at) \n" \
-                f"VALUES {row}"
-        try:
-            cur.execute(query)
-            connection.commit()
-        except Exception as e:
-            connection.rollback()
-            print(f"Ошибка в ставке данных: {row}, {e}")
+def validate_data_for_insert(df: pd.DataFrame) -> pd.DataFrame:
+    required_columns = ['id', 'vm', 'timestamp', 'metric', 'value', 'created_at']
+    missing_columns = [col for col in required_columns if col not in df.columns]
+    if missing_columns:
+        raise ValueError(f"Missing required columns for insert: {missing_columns}")
 
-    #connection.commit()
-    cur.close()
-    connection.close()
+    if df.empty:
+        raise ValueError("DataFrame is empty, nothing to insert")
+
+    null_counts = df[required_columns].isna().sum()
+    if null_counts.any():
+        raise ValueError(f"Null values found in required columns: {null_counts.to_dict()}")
+
+    return df[required_columns]
+
+
+def insert_data(df: pd.DataFrame, batch_size: int = 1000):
+    data = validate_data_for_insert(df)
+    query = (
+        "INSERT INTO server_metrics_fact (id, vm, timestamp, metric, value, created_at) "
+        "VALUES %s"
+    )
+
+    try:
+        with psycopg2.connect(
+            dbname=DB_CONFIG['database'],
+            user=DB_CONFIG['user'],
+            host=DB_CONFIG['host'],
+            port=DB_CONFIG['port'],
+            password=DB_CONFIG['password'],
+        ) as connection:
+            with connection.cursor() as cur:
+                rows = data.to_records(index=False).tolist()
+                for i in tqdm(range(0, len(rows), batch_size), desc="Inserting batches"):
+                    batch = rows[i:i + batch_size]
+                    execute_values(cur, query, batch)
+            connection.commit()
+    except Exception as e:
+        logging.exception("Insert failed: %s", e)
+        raise
+
     return
 
 
 def main():
     # filepath = r'/Users/sweetd0ve/servers-dashboard/data/dbdata/data_06_01-11_01.xlsx'
     filepath = r'/Users/sweetd0ve/servers-dashboard/data/dbdata/data_25_12-31_12.xlsx'
-    df = read_excel_file(filepath)
-    prepared_data = prepare_data(df)
-    insert_data(prepared_data)
+    try:
+        df = read_excel_file(filepath)
+        prepared_data = prepare_data(df)
+        insert_data(prepared_data)
+        print("Data import completed successfully")
+    except Exception as e:
+        logging.exception("ETL failed: %s", e)
+        raise
 
 
 if __name__ == '__main__':
