@@ -1,6 +1,6 @@
+from itertools import product
 import logging
 import random
-from itertools import product
 from typing import Any, Dict, List, Optional
 
 import numpy as np
@@ -10,6 +10,7 @@ from prophet.diagnostics import cross_validation, performance_metrics
 
 from .config import CONDITIONAL_SEASONALITIES, DEFAULT_PARAM_GRID
 from .evaluation import calculate_simple_metrics
+
 
 logger = logging.getLogger(__name__)
 

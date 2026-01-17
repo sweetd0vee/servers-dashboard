@@ -1,12 +1,11 @@
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
+from base_logger import logger
 import models as db_models
 import schemas as pydantic_models
 from sqlalchemy import and_, desc, func
 from sqlalchemy.orm import Session
-
-from base_logger import logger
 
 
 class FactsCRUD:

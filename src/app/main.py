@@ -2,8 +2,9 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import List, Optional
 
-import models as db_models
+from base_logger import logger
 from connection import engine, get_db
+
 # from . import schemas as pydantic_models
 # from .crud import DBCRUD
 # from prophet_service import ProphetForecaster
@@ -11,9 +12,9 @@ from connection import engine, get_db
 from endpoints import router as api_router
 from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+import models as db_models
 from sqlalchemy.orm import Session
 
-from base_logger import logger
 
 # Создание таблиц
 db_models.Base.metadata.create_all(bind=engine)

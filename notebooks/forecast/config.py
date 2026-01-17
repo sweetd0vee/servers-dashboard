@@ -1,6 +1,7 @@
 # config.py
 from typing import Dict, List
 
+
 # Пути и параметры по умолчанию
 MODEL_STORAGE_PATH = "./models_storage"
 

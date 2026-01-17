@@ -3,20 +3,23 @@ Data generator - now loads data from database instead of generating random data.
 This file is kept for backward compatibility.
 For new code, use data_loader.py directly.
 """
+from datetime import datetime, timedelta
 import os
 import sys
-from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
+
 
 # Import the new data loader
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, current_dir)
 
 try:
-    from data_loader import generate_forecast as forecast_from_db
-    from data_loader import generate_server_data as load_from_db
+    from data_loader import (
+        generate_forecast as forecast_from_db,
+        generate_server_data as load_from_db,
+    )
     _USE_DATABASE = True
 except ImportError:
     _USE_DATABASE = False

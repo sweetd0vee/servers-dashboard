@@ -1,19 +1,20 @@
 import base64
+from datetime import datetime, timedelta
 import json
 import os
 import sys
 import tempfile
-from datetime import datetime, timedelta
 
+from jinja2 import Template
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
+from plotly.subplots import make_subplots
 import requests
 import streamlit as st
-from jinja2 import Template
-from plotly.subplots import make_subplots
+
 
 # Добавляем путь для импорта
 current_dir = os.path.dirname(os.path.abspath(__file__))

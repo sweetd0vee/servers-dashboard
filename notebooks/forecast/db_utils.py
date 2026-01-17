@@ -2,17 +2,18 @@
 Простой скрипт для выгрузки исторических данных временных рядов из базы
 """
 
+from contextlib import contextmanager
+from datetime import datetime, timedelta
 import json
 import logging
 import os
 import sys
-from contextlib import contextmanager
-from datetime import datetime, timedelta
 from typing import List, Optional
 
 import pandas as pd
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
+
 
 # Настройка логирования
 logging.basicConfig(

@@ -1,5 +1,6 @@
-import streamlit as st
 from auth import get_current_user, has_role, require_auth
+import streamlit as st
+
 
 # from assets.style import apply_custom_styles
 
@@ -36,6 +37,7 @@ def apply_custom_styles():
 apply_custom_styles()
 
 from components.footer import show_footer
+
 # Импорт компонентов
 from components.header import show_header
 from components.sidebar import show_sidebar

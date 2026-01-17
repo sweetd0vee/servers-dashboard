@@ -4,8 +4,8 @@ Unit tests for PredsCRUD class
 from datetime import datetime, timedelta
 
 import models as db_models
-import pytest
 from preds_crud import PredsCRUD
+import pytest
 
 
 class TestPredsCRUD:

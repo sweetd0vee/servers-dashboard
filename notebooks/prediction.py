@@ -2,21 +2,22 @@
 Production-ready time series forecasting module for server metrics
 """
 
+from datetime import datetime, timedelta
 import json
 import logging
 import os
+from pathlib import Path
 import pickle
 import sys
-import warnings
-from datetime import datetime, timedelta
-from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from prophet import Prophet
 from prophet.diagnostics import cross_validation, performance_metrics
+
 
 # Создание необходимых директорий перед настройкой
 BASE_DIR = Path(__file__).parent.absolute()

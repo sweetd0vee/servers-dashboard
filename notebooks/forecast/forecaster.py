@@ -1,6 +1,6 @@
+from datetime import timedelta
 import logging
 import os
-from datetime import timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
 from prophet import Prophet
@@ -10,9 +10,9 @@ from .config import DEFAULT_PARAM_GRID, MODEL_STORAGE_PATH
 from .model_prediction import predict
 from .model_training import train_model
 from .model_tuning import tune_hyperparameters
-from .storage import (cleanup_old_models, find_latest_model,
-                      load_model_with_metadata)
+from .storage import cleanup_old_models, find_latest_model, load_model_with_metadata
 from .utils import now_utc, prepare_data
+
 
 logger = logging.getLogger(__name__)
 

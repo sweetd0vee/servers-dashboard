@@ -1,5 +1,5 @@
-import json
 from datetime import datetime
+import json
 
 import chardet
 import numpy as np

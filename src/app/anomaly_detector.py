@@ -1,9 +1,10 @@
-import logging
 from datetime import datetime, timedelta
 from enum import Enum
+import logging
 from typing import Dict, List, Optional, Tuple
 
 import numpy as np
+
 
 logger = logging.getLogger(__name__)
 

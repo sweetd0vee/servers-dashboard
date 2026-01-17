@@ -4,6 +4,7 @@ from functools import partial
 
 import streamlit as st
 
+
 # Настройка страницы
 st.set_page_config(
     page_title="Анализ нагрузки серверов",
@@ -39,6 +40,7 @@ def apply_custom_styles():
 apply_custom_styles()
 
 from components.footer import show_footer
+
 # Импорт компонентов
 from components.header import show_header
 from components.sidebar import show_sidebar

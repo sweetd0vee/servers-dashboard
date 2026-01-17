@@ -2,10 +2,10 @@ from datetime import datetime
 from enum import Enum
 from typing import Dict, List, Optional, Tuple
 
+from alert_rules import AlertSeverity, ServerStatus
 import numpy as np
 import pandas as pd
 import streamlit as st
-from alert_rules import AlertSeverity, ServerStatus
 
 
 class Alert:

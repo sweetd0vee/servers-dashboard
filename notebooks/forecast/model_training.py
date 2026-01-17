@@ -1,7 +1,7 @@
+from datetime import timedelta
 import json
 import os
 import pickle
-from datetime import timedelta
 
 import pandas as pd
 from prophet import Prophet

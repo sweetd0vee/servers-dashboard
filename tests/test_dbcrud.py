@@ -3,9 +3,9 @@ Unit tests for DBCRUD class
 """
 from datetime import datetime, timedelta
 
+from dbcrud import DBCRUD
 import models as db_models
 import pytest
-from dbcrud import DBCRUD
 
 
 class TestDBCRUD:

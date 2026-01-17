@@ -1,10 +1,11 @@
+from datetime import datetime, timedelta
 import os
 import sys
-from datetime import datetime, timedelta
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+
 
 # Добавляем путь для импорта
 current_dir = os.path.dirname(os.path.abspath(__file__))

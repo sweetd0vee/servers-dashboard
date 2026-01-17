@@ -1,13 +1,14 @@
 """
 Data loader for dashboard - loads data from database instead of generating
 """
+from datetime import datetime, timedelta
 import os
 import sys
-from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
+
 
 # Add path to app modules
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -15,10 +16,10 @@ app_dir = os.path.join(current_dir, '..', '..', 'app')
 sys.path.insert(0, app_dir)
 
 try:
-    import models as db_models
     from connection import SessionLocal
     from dbcrud import DBCRUD
     from facts_crud import FactsCRUD
+    import models as db_models
 except ImportError as e:
     print(f"Warning: Could not import database modules: {e}")
     print("Falling back to mock data generation")

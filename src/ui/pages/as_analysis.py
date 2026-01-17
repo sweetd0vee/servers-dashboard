@@ -1,19 +1,20 @@
 import base64
+from datetime import datetime, timedelta
 import json
 import os
 import sys
 import tempfile
-from datetime import datetime, timedelta
 
+from jinja2 import Template
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import plotly.io as pio
+from plotly.subplots import make_subplots
 import requests
 import streamlit as st
-from jinja2 import Template
-from plotly.subplots import make_subplots
+
 
 # Добавляем путь для импорта
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -21,13 +22,15 @@ parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 
 try:
-    from components.heatmap_as_cpu import (create_as_cpu_heatmap,
-                                           create_scrollable_html)
-    from components.heatmap_as_cpu import \
-        create_separate_as_heatmaps as create_separate_as_cpu_heatmaps
-    from components.heatmap_as_mem import create_as_mem_heatmap
-    from components.heatmap_as_mem import \
-        create_separate_as_heatmaps as create_separate_as_mem_heatmaps
+    from components.heatmap_as_cpu import (
+        create_as_cpu_heatmap,
+        create_scrollable_html,
+        create_separate_as_heatmaps as create_separate_as_cpu_heatmaps,
+    )
+    from components.heatmap_as_mem import (
+        create_as_mem_heatmap,
+        create_separate_as_heatmaps as create_separate_as_mem_heatmaps,
+    )
 
     from utils.as_mapping import get_as_mapping
     from utils.data_loader import generate_server_data, load_data_from_database

@@ -1,16 +1,17 @@
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timedelta
 import logging
 import os
 import sys
 import warnings
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-import streamlit as st
 from plotly.subplots import make_subplots
 from prophet import Prophet
+import streamlit as st
+
 
 warnings.filterwarnings('ignore')
 

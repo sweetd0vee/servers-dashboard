@@ -1,18 +1,19 @@
+from datetime import datetime, timedelta
+from itertools import product
 import json
 import logging
 import os
 import pickle
 import random
-from datetime import datetime, timedelta
-from itertools import product
 from typing import Any, Dict, List, Optional, Tuple
 
+from dbcrud import DBCRUD
 import numpy as np
 import pandas as pd
-from dbcrud import DBCRUD
 from prophet import Prophet
 from prophet.diagnostics import cross_validation, performance_metrics
 from sqlalchemy.orm import Session
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

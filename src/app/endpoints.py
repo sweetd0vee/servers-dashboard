@@ -10,18 +10,25 @@ This module provides RESTful API endpoints for:
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
-import models as db_models
-import schemas as pydantic_models
+from base_logger import logger
 from connection import get_db
 from dbcrud import DBCRUD
 from facts_crud import FactsCRUD
-from fastapi import (APIRouter, BackgroundTasks, Body, Depends, HTTPException,
-                     Query, status)
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Body,
+    Depends,
+    HTTPException,
+    Query,
+    status,
+)
+import models as db_models
 from preds_crud import PredsCRUD
+import schemas as pydantic_models
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from base_logger import logger
 
 router = APIRouter()
 

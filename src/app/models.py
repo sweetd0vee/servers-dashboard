@@ -6,8 +6,16 @@
 import uuid
 
 from connection import Base, engine
-from sqlalchemy import (DECIMAL, CheckConstraint, Column, DateTime, Index,
-                        String, UniqueConstraint, text)
+from sqlalchemy import (
+    DECIMAL,
+    CheckConstraint,
+    Column,
+    DateTime,
+    Index,
+    String,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 

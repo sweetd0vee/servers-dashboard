@@ -1,27 +1,54 @@
 from datetime import datetime, timedelta
 
+from db_helper import get_session_local
 from facts_crud import FactsCRUD
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from schemas import MetricFact
 
-# Создание сессии
-engine = create_engine('postgresql://postgres:postgres@localhost:5432/server_metrics')
-SessionLocal = sessionmaker(bind=engine)
-session = SessionLocal()
 
-# Создание CRUD объекта
-crud = FactsCRUD(session)
+def main() -> None:
+    SessionLocal = get_session_local()
+    session = SessionLocal()
 
-# 1. Получение последних 24 часов данных
-vm = "DataLake-DBN1"
-metric = "cpu.usage.average"
+    try:
+        crud = FactsCRUD(session)
 
-latest_data = crud.get_latest_metrics(vm, metric, hours=2000)
-print(f"Получено {len(latest_data)} записей за последние 2000 часов")
+        vm = "DataLake-DBN1"
+        metric = "cpu.usage.average"
 
-# 2. Получение статистики
-stats = crud.get_historical_metrics_statistics(vm, metric)
-print(f"Статистика: среднее={stats['avg']:.2f}, минимум={stats['min']:.2f}, максимум={stats['max']:.2f}")
+        # 1. Получение последних 24 часов данных
+        latest_data = crud.get_latest_metrics(vm, metric, hours=24)
+        print(f"Получено {len(latest_data)} записей за последние 24 часа")
 
-# Закрытие сессии
-session.close()
+        # 2. Получение статистики за 7 дней
+        end_date = datetime.now()
+        start_date = end_date - timedelta(days=7)
+        stats = crud.get_metrics_fact_statistics(
+            vm=vm,
+            metric=metric,
+            start_date=start_date,
+            end_date=end_date,
+        )
+        print(
+            "Статистика за 7 дней: "
+            f"avg={stats['avg']:.2f}, min={stats['min']:.2f}, max={stats['max']:.2f}"
+        )
+
+        # 3. Создание или обновление метрики
+        new_fact = MetricFact(
+            vm=vm,
+            timestamp=datetime.now(),
+            metric=metric,
+            value=42.5,
+            created_at=datetime.now(),
+        )
+        saved_fact = crud.create_metric_fact(new_fact)
+        print(
+            "Сохранена запись: "
+            f"{saved_fact.vm}/{saved_fact.metric} at {saved_fact.timestamp}"
+        )
+    finally:
+        session.close()
+
+
+if __name__ == "__main__":
+    main()
