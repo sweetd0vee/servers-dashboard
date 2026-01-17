@@ -1,11 +1,11 @@
-from datetime import datetime
 import logging
-from pathlib import Path
 import sys
+from datetime import datetime
+from pathlib import Path
 
 
 # Создаем директорию для логов если ее нет
-log_dir = Path("../logs")
+log_dir = Path(__file__).resolve().parent.parent.parent / "logs"
 log_dir.mkdir(exist_ok=True)
 
 # Формат даты для имени файла
@@ -22,18 +22,20 @@ formatter = logging.Formatter(
 logger = logging.getLogger('server_analysis')
 logger.setLevel(logging.INFO)
 
-# Обработчик для файла
-file_handler = logging.FileHandler(log_file, encoding='utf-8')
-file_handler.setLevel(logging.DEBUG)
-file_handler.setFormatter(formatter)
+if not logger.handlers:
+    # Обработчик для файла
+    file_handler = logging.FileHandler(log_file, encoding='utf-8')
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(formatter)
 
-# Обработчик для консоли
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setLevel(logging.INFO)
-console_handler.setFormatter(formatter)
+    # Обработчик для консоли
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(logging.INFO)
+    console_handler.setFormatter(formatter)
 
-# Добавляем обработчики к логгеру
-logger.addHandler(file_handler)
-logger.addHandler(console_handler)
+    # Добавляем обработчики к логгеру
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+    logger.propagate = False
 
 logger.info(f'Логгер инициализирован. Логи будут записываться в {log_file}')
