@@ -7,7 +7,6 @@ import streamlit as st
 
 
 # import os
-# from dotenv import load_dotenv
 # add to config DASHBOARD-BE_URL=http://127.0.0.1:8000
 
 # Настройка страницы

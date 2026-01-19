@@ -1,712 +1,685 @@
-# Architecture Documentation
-## AIOps Dashboard Project
+# Архитектура проекта
+## AIOps Dashboard - Система мониторинга и прогнозирования нагрузки серверов
 
-This document describes the system architecture, components, data flow, and deployment structure of the AIOps Dashboard application.
+Документация описывает архитектуру системы, компоненты, потоки данных и структуру развертывания приложения для мониторинга и прогнозирования метрик серверов.
 
-**Last Updated:** 2025-01-27  
-**Version:** 2.0
-
----
-
-## Table of Contents
-
-1. [System Overview](#system-overview)
-2. [High-Level Architecture](#high-level-architecture)
-3. [Component Architecture](#component-architecture)
-4. [Data Flow Diagrams](#data-flow-diagrams)
-5. [Database Schema](#database-schema)
-6. [Deployment Architecture](#deployment-architecture)
-7. [Technology Stack](#technology-stack)
-8. [Testing Architecture](#testing-architecture)
-9. [Error Handling Architecture](#error-handling-architecture)
+**Последнее обновление:** 2026-01-19  
+**Версия:** 3.0
 
 ---
 
-## System Overview
+## Содержание
 
-The AIOps Dashboard is a full-stack application for monitoring and forecasting server metrics. It consists of:
-
-- **Backend API**: FastAPI-based REST API with comprehensive error handling and validation
-- **Frontend UI**: Streamlit-based interactive dashboard with database integration
-- **Database**: PostgreSQL for time-series metrics storage
-- **Forecasting Engine**: Prophet-based time series forecasting
-- **Testing Suite**: Comprehensive pytest-based test coverage
-- **Authentication**: Keycloak integration (configured but not fully implemented)
-- **Reverse Proxy**: Apache HTTPd for routing and SSL termination
+1. [Обзор системы](#обзор-системы)
+2. [Высокоуровневая архитектура](#высокоуровневая-архитектура)
+3. [Архитектура компонентов](#архитектура-компонентов)
+4. [Диаграммы потоков данных](#диаграммы-потоков-данных)
+5. [Схема базы данных](#схема-базы-данных)
+6. [Архитектура развертывания](#архитектура-развертывания)
+7. [Технологический стек](#технологический-стек)
+8. [Архитектура тестирования](#архитектура-тестирования)
+9. [Обработка ошибок](#обработка-ошибок)
+10. [Модуль прогнозирования](#модуль-прогнозирования)
 
 ---
 
-## High-Level Architecture
+## Обзор системы
+
+AIOps Dashboard - полнофункциональное приложение для мониторинга и прогнозирования метрик серверов с использованием машинного обучения.
+
+### Основные компоненты
+
+- **Backend API**: REST API на базе FastAPI с обработкой ошибок и валидацией
+- **Frontend UI**: Интерактивный дашборд на Streamlit с прямым доступом к БД
+- **База данных**: PostgreSQL для хранения временных рядов метрик
+- **Forecasting Engine**: Модуль прогнозирования на базе Prophet
+- **Testing Suite**: Комплексное тестовое покрытие на pytest
+- **ETL Pipeline**: Инструменты для загрузки и подготовки данных
+- **Reverse Proxy**: Apache HTTPd для маршрутизации и SSL
+
+---
+
+## Высокоуровневая архитектура
 
 ```mermaid
 graph TB
-    subgraph "Client Layer"
-        Browser[Web Browser]
+    subgraph "Клиентский слой"
+        Browser[Веб-браузер]
     end
     
-    subgraph "Reverse Proxy Layer"
-        HTTPd[Apache HTTPd<br/>Port 80/443]
+    subgraph "Reverse Proxy"
+        HTTPd[Apache HTTPd<br/>Порт 80/443]
     end
     
-    subgraph "Application Layer"
-        API[FastAPI Backend<br/>Port 8000<br/>Enhanced Error Handling]
-        UI[Streamlit Frontend<br/>Port 8501<br/>Database Integration]
+    subgraph "Слой приложений"
+        API[FastAPI Backend<br/>Порт 8000<br/>REST API]
+        UI[Streamlit UI<br/>Порт 8501<br/>Интерактивный дашборд]
     end
     
-    subgraph "Service Layer"
-        Auth[Keycloak<br/>Port 8087]
-        LLM[LLaMA Server<br/>Port 8080]
+    subgraph "Слой сервисов"
+        Auth[Keycloak<br/>Порт 8087<br/>Опционально]
+        Forecast[Prophet Forecaster<br/>ML прогнозирование]
     end
     
-    subgraph "Data Layer"
-        DB[(PostgreSQL<br/>Port 5432)]
-        Models[Model Storage<br/>File System]
+    subgraph "Слой данных"
+        DB[(PostgreSQL<br/>Порт 5432<br/>Временные ряды)]
+        Models[Хранилище моделей<br/>Файловая система]
     end
     
-    subgraph "Testing Layer"
-        Tests[Pytest Test Suite<br/>Unit & Integration Tests]
+    subgraph "ETL Pipeline"
+        ETL[Загрузка данных<br/>prepare_data.py<br/>data_loader.py]
     end
     
     Browser -->|HTTPS/HTTP| HTTPd
     HTTPd -->|/api/*| API
     HTTPd -->|/dashboard-ui/*| UI
-    HTTPd -->|/keycloak/*| Auth
+    HTTPd -.->|/keycloak/*| Auth
     
-    API -->|Read/Write| DB
-    API -->|Load/Save| Models
-    UI -->|API Calls| API
-    UI -->|Direct| DB
+    API -->|Чтение/Запись| DB
+    UI -->|Прямой доступ| DB
+    UI -->|API вызовы| API
     
-    Auth -->|User Data| DB
-    API -.->|Auth Check| Auth
+    API -->|Использует| Forecast
+    Forecast -->|Загрузка/Сохранение| Models
+    Forecast -->|Чтение данных| DB
     
-    Tests -->|Test| API
-    Tests -->|Test| DB
+    ETL -->|Загрузка метрик| DB
     
     style Browser fill:#e1f5ff
     style HTTPd fill:#fff4e1
     style API fill:#e8f5e9
-    style UI fill:#e8f5e9
+    style UI fill:#ffe6cc
     style DB fill:#f3e5f5
-    style Models fill:#f3e5f5
-    style Auth fill:#fff9c4
-    style LLM fill:#fff9c4
-    style Tests fill:#ffebee
+    style Forecast fill:#fff9c4
+    style ETL fill:#e0f2f1
 ```
 
 ---
 
-## Component Architecture
+## Архитектура компонентов
 
-### Backend API Components
+### Backend API (FastAPI)
 
 ```mermaid
 graph LR
-    subgraph "API Layer"
-        Main[main.py<br/>FastAPI App]
-        Router[api/endpoints.py<br/>REST Routes<br/>Error Handling<br/>Validation]
+    subgraph "API слой"
+        Main[main.py<br/>FastAPI приложение]
+        Endpoints[endpoints.py<br/>REST эндпоинты<br/>Валидация]
     end
     
-    subgraph "Business Logic"
-        CRUD[dbcrud.py<br/>Data Access]
-        FactsCRUD[facts_crud.py<br/>Fact Metrics]
-        PredsCRUD[preds_crud.py<br/>Predictions]
-        Forecaster[forecaster.py<br/>Prophet ML]
-        Anomaly[anomaly_detector.py<br/>Anomaly Detection]
+    subgraph "Бизнес-логика"
+        DBCRUD[dbcrud.py<br/>Базовый CRUD]
+        FactsCRUD[facts_crud.py<br/>Фактические метрики]
+        PredsCRUD[preds_crud.py<br/>Прогнозы]
+        Anomaly[anomaly_detector.py<br/>Детектор аномалий]
     end
     
-    subgraph "Data Models"
-        Models[models.py<br/>SQLAlchemy ORM]
-        Schemas[schemas.py<br/>Pydantic Models]
+    subgraph "Модели данных"
+        Models[models.py<br/>SQLAlchemy ORM<br/>ServerMetricsFact<br/>ServerMetricsPredictions]
+        Schemas[schemas.py<br/>Pydantic схемы<br/>Валидация]
     end
     
-    subgraph "Infrastructure"
-        Conn[connection.py<br/>DB Connection]
-        Logger[base_logger.py<br/>Logging]
+    subgraph "Инфраструктура"
+        Conn[connection.py<br/>Подключение к БД<br/>SessionLocal]
+        Logger[base_logger.py<br/>Логирование]
     end
     
-    subgraph "API Helpers"
-        Helpers[Helper Functions<br/>db_metric_to_schema<br/>validate_date_range<br/>handle_database_error]
-        Constants[Constants<br/>DEFAULT_LIMIT<br/>MAX_HOURS<br/>etc.]
-    end
+    Main --> Endpoints
+    Endpoints --> FactsCRUD
+    Endpoints --> PredsCRUD
+    Endpoints --> DBCRUD
+    Endpoints --> Anomaly
     
-    Main --> Router
-    Router --> CRUD
-    Router --> FactsCRUD
-    Router --> PredsCRUD
-    Router --> Forecaster
-    Router --> Anomaly
-    Router --> Helpers
-    Router --> Constants
-    CRUD --> Models
     FactsCRUD --> Models
     PredsCRUD --> Models
-    CRUD --> Conn
-    Forecaster --> Models
-    Forecaster --> Conn
+    DBCRUD --> Models
+    
     Models --> Conn
+    FactsCRUD --> Conn
+    
+    Endpoints --> Schemas
     Main --> Logger
     
     style Main fill:#4caf50
-    style Router fill:#81c784
-    style CRUD fill:#66bb6a
-    style FactsCRUD fill:#66bb6a
-    style PredsCRUD fill:#66bb6a
-    style Forecaster fill:#ff9800
-    style Anomaly fill:#ff9800
+    style Endpoints fill:#81c784
     style Models fill:#2196f3
-    style Schemas fill:#2196f3
     style Conn fill:#9e9e9e
-    style Logger fill:#9e9e9e
-    style Helpers fill:#9ccc65
-    style Constants fill:#9ccc65
 ```
 
-### Frontend UI Components
+### Frontend UI (Streamlit)
 
 ```mermaid
 graph TB
-    subgraph "UI Entry Point"
-        MainUI[main.py<br/>Streamlit App]
+    subgraph "UI точка входа"
+        MainUI[main.py<br/>Streamlit приложение<br/>Табы]
     end
     
-    subgraph "Pages"
-        Fact[pages/fact.py<br/>Fact Metrics<br/>Database Loaded]
-        Forecast[pages/forecast.py<br/>Forecasting<br/>Database Loaded]
-        Analysis[pages/analysis.py<br/>Analysis<br/>Database Loaded]
+    subgraph "Страницы"
+        Fact[fact.py<br/>Фактические метрики<br/>Визуализация]
+        Forecast[forecast.py<br/>Прогнозирование<br/>Prophet интеграция]
+        Analysis[analysis.py<br/>Анализ по серверам]
+        ASAnalysis[as_analysis.py<br/>Анализ по АС]
     end
     
-    subgraph "Components"
-        Header[components/header.py]
-        Sidebar[components/sidebar.py]
-        Footer[components/footer.py]
+    subgraph "Компоненты"
+        Header[header.py<br/>Заголовок]
+        Sidebar[sidebar.py<br/>Боковая панель]
+        Footer[footer.py<br/>Подвал]
+        HeatmapCPU[heatmap_as_cpu.py<br/>Тепловая карта CPU]
+        HeatmapMem[heatmap_as_mem.py<br/>Тепловая карта RAM]
     end
     
-    subgraph "Utilities"
-        DataLoader[utils/data_loader.py<br/>Database Integration]
-        DataGen[utils/data_generator.py<br/>Fallback Generator]
-        Alerts[utils/alert_rules.py]
-        Analyzer[utils/alert_analyzer.py]
+    subgraph "Утилиты"
+        DataLoader[data_loader.py<br/>Загрузка из БД<br/>Основной источник]
+        DataGen[data_generator.py<br/>Генератор данных<br/>Fallback]
+        AlertRules[alert_rules.py<br/>Правила алертов]
+        AlertAnalyzer[alert_analyzer.py<br/>Анализатор алертов]
     end
     
     MainUI --> Fact
     MainUI --> Forecast
     MainUI --> Analysis
+    MainUI --> ASAnalysis
+    
     MainUI --> Header
     MainUI --> Sidebar
     MainUI --> Footer
     
     Fact --> DataLoader
-    Fact --> Alerts
     Forecast --> DataLoader
-    Forecast --> DataGen
     Analysis --> DataLoader
-    Analysis --> Analyzer
+    ASAnalysis --> HeatmapCPU
+    ASAnalysis --> HeatmapMem
     
-    DataLoader -->|Primary| DB[(PostgreSQL)]
-    DataGen -->|Fallback| MockData[Mock Data]
+    Fact --> AlertRules
+    Analysis --> AlertAnalyzer
+    
+    DataLoader -->|Приоритет| DB[(PostgreSQL)]
+    DataLoader -.->|Fallback| DataGen
     
     style MainUI fill:#ff6b6b
-    style Fact fill:#ff8787
-    style Forecast fill:#ff8787
-    style Analysis fill:#ff8787
-    style Header fill:#ffa8a8
-    style Sidebar fill:#ffa8a8
-    style Footer fill:#ffa8a8
+    style Forecast fill:#ffa8a8
     style DataLoader fill:#51cf66
     style DataGen fill:#ffd43b
-    style DB fill:#2196f3
 ```
 
-### Testing Architecture
+### Модуль прогнозирования (Prophet)
 
 ```mermaid
 graph TB
-    subgraph "Test Suite"
-        TestMain[tests/<br/>Test Suite Root]
+    subgraph "Forecaster модуль"
+        Forecaster[forecaster.py<br/>ProphetForecaster<br/>Главный интерфейс]
         
-        subgraph "Unit Tests"
-            TestDB[test_dbcrud.py<br/>DBCRUD Tests]
-            TestFacts[test_factscrud.py<br/>FactsCRUD Tests]
-            TestPreds[test_predscrud.py<br/>PredsCRUD Tests]
-        end
+        Training[model_training.py<br/>Обучение моделей<br/>Валидация]
+        Tuning[model_tuning.py<br/>Подбор гиперпараметров<br/>Cross-validation]
+        Prediction[model_prediction.py<br/>Генерация прогнозов]
         
-        subgraph "Integration Tests"
-            TestAPI[test_api_endpoints.py<br/>API Endpoint Tests]
-        end
+        Storage[storage.py<br/>Сохранение/загрузка<br/>моделей]
+        Utils[utils.py<br/>Подготовка данных<br/>Метрики качества]
+        Config[config.py<br/>Конфигурация<br/>Параметры]
         
-        subgraph "Test Infrastructure"
-            Conftest[conftest.py<br/>Fixtures & Config]
-            TestDB_Instance[(SQLite<br/>In-Memory<br/>Test DB)]
-        end
+        DBUtils[db_utils.py<br/>Работа с БД<br/>CRUD операции]
+        Evaluation[evaluation.py<br/>Оценка качества<br/>MAPE, MAE, RMSE]
     end
     
-    TestMain --> TestDB
-    TestMain --> TestFacts
-    TestMain --> TestPreds
-    TestMain --> TestAPI
+    Forecaster --> Training
+    Forecaster --> Tuning
+    Forecaster --> Prediction
+    Forecaster --> Storage
     
-    TestDB --> Conftest
-    TestFacts --> Conftest
-    TestPreds --> Conftest
-    TestAPI --> Conftest
+    Training --> Utils
+    Tuning --> Utils
+    Prediction --> Utils
     
-    Conftest --> TestDB_Instance
+    Forecaster --> Config
+    Forecaster --> DBUtils
     
-    style TestMain fill:#ffebee
-    style TestDB fill:#ffcdd2
-    style TestFacts fill:#ffcdd2
-    style TestPreds fill:#ffcdd2
-    style TestAPI fill:#ef9a9a
-    style Conftest fill:#e1bee7
-    style TestDB_Instance fill:#ce93d8
+    Training --> Evaluation
+    Tuning --> Evaluation
+    
+    DBUtils --> DB[(PostgreSQL)]
+    Storage --> FileSystem[Файловая система]
+    
+    style Forecaster fill:#ff9800
+    style Training fill:#ffb74d
+    style Tuning fill:#ffb74d
+    style Prediction fill:#ffb74d
+    style Storage fill:#9e9e9e
 ```
 
 ---
 
-## Data Flow Diagrams
+## Диаграммы потоков данных
 
-### Metrics Retrieval Flow (Enhanced)
+### Загрузка метрик (Fact Metrics)
 
 ```mermaid
 sequenceDiagram
-    participant User
+    participant User as Пользователь
     participant UI as Streamlit UI
-    participant DataLoader as data_loader.py
-    participant API as FastAPI
+    participant Loader as data_loader.py
     participant CRUD as FactsCRUD
     participant DB as PostgreSQL
     
-    User->>UI: Select VM & Metric
-    UI->>DataLoader: load_data_from_db()
+    User->>UI: Выбирает VM и метрику
+    UI->>Loader: load_data_from_database()
     
-    alt Database Available
-        DataLoader->>CRUD: get_metrics_fact()
-        CRUD->>DB: SELECT query with validation
-        DB-->>CRUD: Result set
-        CRUD-->>DataLoader: List[ServerMetricsFact]
-        DataLoader->>DataLoader: Transform to DataFrame
-        DataLoader-->>UI: DataFrame
-    else Database Unavailable
-        DataLoader->>DataLoader: Fallback to generator
-        DataLoader-->>UI: Mock DataFrame
+    alt База данных доступна
+        Loader->>CRUD: get_metrics_fact(vm, metric, dates)
+        CRUD->>DB: SELECT запрос
+        DB-->>CRUD: Результаты
+        CRUD-->>Loader: List[ServerMetricsFact]
+        Loader->>Loader: Преобразование в DataFrame
+        Loader-->>UI: DataFrame
+    else База недоступна
+        Loader->>Loader: generate_server_data()
+        Loader-->>UI: Mock DataFrame
     end
     
-    UI->>UI: Render charts/graphs
-    UI-->>User: Display metrics
+    UI->>UI: Визуализация (Plotly)
+    UI-->>User: Графики метрик
 ```
 
-### API Request Flow with Error Handling
+### Генерация прогноза
 
 ```mermaid
 sequenceDiagram
-    participant Client
-    participant API as FastAPI Endpoint
-    participant Validator as Input Validation
-    participant Helper as Helper Functions
-    participant CRUD as CRUD Layer
-    participant DB as PostgreSQL
-    participant Logger as Logger
-    
-    Client->>API: HTTP Request
-    API->>Validator: Validate input (Pydantic)
-    
-    alt Validation Failed
-        Validator-->>API: 400 Bad Request
-        API-->>Client: Error Response
-    else Validation Passed
-        API->>Helper: validate_date_range()
-        Helper-->>API: OK
-        
-        API->>CRUD: Business Logic Call
-        CRUD->>DB: Database Query
-        
-        alt Database Error
-            DB-->>CRUD: SQLAlchemyError
-            CRUD-->>API: Exception
-            API->>Helper: handle_database_error()
-            Helper->>Logger: Log error with context
-            Helper-->>API: HTTPException
-            API-->>Client: 500/409 Error Response
-        else Success
-            DB-->>CRUD: Result
-            CRUD-->>API: Data Model
-            API->>Helper: db_metric_to_schema()
-            Helper-->>API: Pydantic Schema
-            API-->>Client: 200 OK Response
-        end
-    end
-```
-
-### Forecasting Flow
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant UI as Streamlit UI
-    participant API as FastAPI
+    participant User as Пользователь
+    participant UI as Forecast Page
     participant Forecaster as ProphetForecaster
-    participant CRUD as DBCRUD
+    participant Training as model_training
+    participant Tuning as model_tuning
+    participant Storage as storage
     participant DB as PostgreSQL
-    participant Storage as Model Storage
     
-    User->>UI: Request Forecast
-    UI->>API: POST /api/v1/predict
-    API->>Forecaster: generate_forecast(vm, metric)
+    User->>UI: Выбирает АС, метрику, период
+    UI->>UI: Загружает маппинг серверов на АС
+    UI->>DB: Загружает исторические данные
+    DB-->>UI: DataFrame метрик
     
-    alt Model Exists
-        Forecaster->>Storage: load_model(vm, metric)
-        Storage-->>Forecaster: Prophet Model
-    else Model Not Found
-        Forecaster->>CRUD: get_historical_metrics()
-        CRUD->>DB: SELECT historical data
-        DB-->>CRUD: Time series data
-        CRUD-->>Forecaster: DataFrame
-        Forecaster->>Forecaster: train_model()
+    loop Для каждого сервера в АС
+        UI->>UI: prepare_data_for_prophet()
+        UI->>Forecaster: generate_forecast_for_server()
+        
+        Forecaster->>Tuning: tune_hyperparameters()
+        Tuning->>Tuning: Cross-validation / Holdout
+        Tuning-->>Forecaster: best_params
+        
+        Forecaster->>Training: train_model(data, params)
+        Training->>Training: Prophet.fit()
+        Training-->>Forecaster: trained_model, metrics
+        
+        Forecaster->>Forecaster: predict(periods, freq)
         Forecaster->>Storage: save_model()
+        
+        Forecaster-->>UI: forecast_df, quality_metrics
+        UI->>UI: Визуализация (Plotly)
     end
     
-    Forecaster->>Forecaster: predict(periods=48)
-    Forecaster->>CRUD: save_prediction()
-    CRUD->>DB: INSERT predictions
-    DB-->>CRUD: Success
-    CRUD-->>Forecaster: Confirmation
-    Forecaster-->>API: Forecast results
-    API-->>UI: JSON with predictions
-    UI->>UI: Render forecast chart
-    UI-->>User: Display forecast
+    UI->>UI: Агрегация прогнозов по АС
+    UI->>UI: Анализ рисков
+    UI-->>User: Графики + Рекомендации
 ```
 
-### Data Ingestion Flow
+### ETL Pipeline
 
 ```mermaid
 sequenceDiagram
-    participant External as External System
+    participant Source as Источник данных<br/>(Excel/CSV)
+    participant Prep as prepare_data.py
+    participant Loader as data_loader.py
     participant API as FastAPI
-    participant Validator as Pydantic Validator
     participant CRUD as FactsCRUD
     participant DB as PostgreSQL
-    participant Anomaly as AnomalyDetector
-    participant Logger as Logger
     
-    External->>API: POST /api/v1/facts/batch
-    API->>Validator: Validate input (Pydantic)
+    Source->>Prep: Чтение файла
+    Prep->>Prep: Валидация и трансформация
+    Prep->>Prep: Обработка timestamp
+    Prep-->>Loader: DataFrame
     
-    alt Validation Failed
-        Validator-->>API: ValidationError
-        API-->>External: 400 Bad Request
-    else Validation Passed
-        API->>CRUD: create_metrics_fact_batch()
-        
-        loop For each metric
-            CRUD->>DB: INSERT INTO server_metrics_fact
-            alt Integrity Error
-                DB-->>CRUD: IntegrityError
-                CRUD->>Logger: Log error
-                CRUD-->>API: Continue (skip duplicate)
-            else Success
-                DB-->>CRUD: Success
-            end
+    Loader->>API: POST /api/v1/facts/batch
+    API->>API: Валидация (Pydantic)
+    
+    API->>CRUD: create_metrics_fact_batch()
+    
+    loop Для каждой метрики
+        CRUD->>DB: INSERT INTO server_metrics_fact
+        alt Дубликат
+            DB-->>CRUD: IntegrityError
+            CRUD->>CRUD: Пропуск (skip)
+        else Успех
+            DB-->>CRUD: Success
         end
-        
-        CRUD-->>API: Created count
-        API->>Anomaly: detect_realtime_anomaly()
-        Anomaly->>CRUD: get_latest_metrics()
-        CRUD->>DB: SELECT recent data
-        DB-->>CRUD: Historical values
-        CRUD-->>Anomaly: Data
-        Anomaly->>Anomaly: Calculate anomaly score
-        alt Anomaly Detected
-            Anomaly-->>API: Alert
-            API->>Logger: Log alert
-        end
-        API-->>External: 201 Created + BatchCreateResponse
     end
+    
+    CRUD-->>API: created_count
+    API-->>Loader: BatchCreateResponse
+    Loader-->>Source: Статус загрузки
 ```
 
 ---
 
-## Database Schema
+## Схема базы данных
 
-### Entity Relationship Diagram
+### ER-диаграмма
 
 ```mermaid
 erDiagram
-    ServerMetricsFact ||--o{ ServerMetricsPredictions : "related"
+    ServerMetricsFact ||--o{ ServerMetricsPredictions : "связаны по vm+metric"
     
     ServerMetricsFact {
-        uuid id PK
-        string vm
-        datetime timestamp
-        string metric
-        decimal value
-        datetime created_at
+        uuid id PK "Уникальный идентификатор"
+        string vm "Имя виртуальной машины"
+        datetime timestamp "Временная метка (UTC)"
+        string metric "Название метрики"
+        decimal value "Значение метрики (0-100)"
+        datetime created_at "Время создания записи"
     }
     
     ServerMetricsPredictions {
-        uuid id PK
-        string vm
-        datetime timestamp
-        string metric
-        decimal value_predicted
-        decimal lower_bound
-        decimal upper_bound
-        datetime created_at
+        uuid id PK "Уникальный идентификатор"
+        string vm "Имя виртуальной машины"
+        datetime timestamp "Временная метка прогноза"
+        string metric "Название метрики"
+        decimal value_predicted "Прогнозное значение"
+        decimal lower_bound "Нижняя граница (80% CI)"
+        decimal upper_bound "Верхняя граница (80% CI)"
+        datetime created_at "Время создания прогноза"
     }
 ```
 
-### Table Structure
+### Таблицы и индексы
 
 #### server_metrics_fact
-- **Purpose**: Stores actual/historical server metrics
-- **Primary Key**: `id` (UUID)
-- **Unique Constraint**: `(vm, timestamp, metric)`
-- **Indexes**: 
-  - `idx_vm_timestamp_metric` on `(vm, timestamp, metric)`
-  - Individual indexes on `vm`, `timestamp`, `value`
-- **Constraints**: 
-  - `chk_timestamp_not_future`: Ensures timestamps are not in the future
-  - `chk_value_range`: Ensures values are between 0 and 100
+
+**Назначение**: Хранение фактических метрик серверов (CPU, RAM, Disk, Network)
+
+**Структура**:
+- `id` (UUID) - первичный ключ
+- `vm` (VARCHAR 255) - имя виртуальной машины, индексировано
+- `timestamp` (TIMESTAMP WITH TIMEZONE) - временная метка, индексировано
+- `metric` (VARCHAR 255) - название метрики (cpu.usage.average, mem.usage.average)
+- `value` (DECIMAL 20,5) - значение метрики, индексировано
+- `created_at` (TIMESTAMP WITH TIMEZONE) - время создания записи
+
+**Ограничения**:
+- `UNIQUE (vm, timestamp, metric)` - уникальная комбинация
+- `CHECK (timestamp <= CURRENT_TIMESTAMP)` - метка не из будущего
+- Составной индекс: `idx_vm_timestamp_metric (vm, timestamp, metric)`
 
 #### server_metrics_predictions
-- **Purpose**: Stores forecasted/predicted metrics
-- **Primary Key**: `id` (UUID)
-- **Unique Constraint**: `(vm, timestamp, metric)`
-- **Indexes**: 
-  - `idx_vm_timestamp_metric_pred` on `(vm, timestamp, metric)`
-  - Individual indexes on `vm`, `timestamp`
-- **Fields**: Includes confidence intervals (`lower_bound`, `upper_bound`)
+
+**Назначение**: Хранение прогнозов метрик
+
+**Структура**:
+- `id` (UUID) - первичный ключ
+- `vm` (VARCHAR 255) - имя виртуальной машины, индексировано
+- `timestamp` (TIMESTAMP WITH TIMEZONE) - временная метка прогноза, индексировано
+- `metric` (VARCHAR 255) - название метрики
+- `value_predicted` (DECIMAL 20,5) - прогнозное значение
+- `lower_bound` (DECIMAL 20,5) - нижняя граница доверительного интервала
+- `upper_bound` (DECIMAL 20,5) - верхняя граница доверительного интервала
+- `created_at` (TIMESTAMP WITH TIMEZONE) - время создания прогноза
+
+**Ограничения**:
+- `UNIQUE (vm, timestamp, metric)` - уникальная комбинация прогноза
+- Составной индекс: `idx_vm_timestamp_metric_pred (vm, timestamp, metric)`
 
 ---
 
-## Deployment Architecture
+## Архитектура развертывания
 
-### Docker Compose Deployment
+### Docker Compose конфигурация
 
 ```mermaid
 graph TB
     subgraph "Docker Network: servers-network"
-        subgraph "Web Layer"
-            HTTPd[Apache HTTPd<br/>Container: httpd-proxy<br/>Ports: 80, 443]
+        subgraph "Веб-слой"
+            HTTPd[Apache HTTPd<br/>Контейнер: httpd-proxy<br/>Порты: 80, 443<br/>SSL терминация]
         end
         
-        subgraph "Application Containers"
-            API_Container[FastAPI App<br/>Container: dashboard<br/>Port: 8000<br/>Enhanced Error Handling]
-            UI_Container[Streamlit UI<br/>Container: dashboard-ui<br/>Port: 8501<br/>Database Integration]
+        subgraph "Контейнеры приложений"
+            API[FastAPI App<br/>Контейнер: dashboard<br/>Порт: 8000<br/>uvicorn]
+            UI[Streamlit UI<br/>Контейнер: dashboard-ui<br/>Порт: 8501<br/>streamlit]
         end
         
-        subgraph "Service Containers"
-            Keycloak[Keycloak<br/>Container: keycloak<br/>Port: 8087]
-            LLaMA[LLaMA Server<br/>Container: llama-server<br/>Port: 8080]
+        subgraph "Сервисы"
+            Keycloak[Keycloak<br/>Контейнер: keycloak<br/>Порт: 8087<br/>Опционально]
         end
         
-        subgraph "Data Containers"
-            Postgres[PostgreSQL<br/>Container: postgres<br/>Port: 5432<br/>Volume: postgres-data]
+        subgraph "База данных"
+            Postgres[PostgreSQL 16.9<br/>Контейнер: postgres<br/>Порт: 5432]
         end
     end
     
-    subgraph "Host Volumes"
-        ModelStorage[Model Storage<br/>./notebooks/models]
-        PostgresData[Postgres Data<br/>~/docker-share/postgres-data-server]
-        SSL_Certs[SSL Certificates<br/>./docker/httpd/data/letsencrypt]
+    subgraph "Хост томы"
+        ModelStorage[Хранилище моделей<br/>./notebooks/models]
+        PostgresData[Данные PostgreSQL<br/>~/docker-share/postgres-data-server]
+        SSL[SSL сертификаты<br/>./docker/httpd/data/letsencrypt]
     end
     
-    HTTPd -->|Route /api/*| API_Container
-    HTTPd -->|Route /dashboard-ui/*| UI_Container
-    HTTPd -->|Route /keycloak/*| Keycloak
+    HTTPd -->|/api/*| API
+    HTTPd -->|/dashboard-ui/*| UI
+    HTTPd -.->|/keycloak/*| Keycloak
     
-    API_Container -->|Connect| Postgres
-    UI_Container -->|API Calls| API_Container
-    UI_Container -->|Direct| Postgres
-    Keycloak -->|Connect| Postgres
+    API -->|Подключение| Postgres
+    UI -->|Прямое подключение| Postgres
+    UI -->|API вызовы| API
     
-    API_Container -->|Read/Write| ModelStorage
+    API -->|Чтение/Запись| ModelStorage
     Postgres -->|Persist| PostgresData
-    HTTPd -->|SSL Certs| SSL_Certs
+    HTTPd -->|SSL Certs| SSL
     
     style HTTPd fill:#ff9800
-    style API_Container fill:#4caf50
-    style UI_Container fill:#4caf50
-    style Postgres fill:#2196f3
-    style Keycloak fill:#ffc107
-    style LLaMA fill:#ffc107
+    style API fill:#4caf50
+    style UI fill:#2196f3
+    style Postgres fill:#9c27b0
+```
+
+### Переменные окружения
+
+#### Backend API (.env)
+```env
+DB_HOST=postgres
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=secure_password
+DB_NAME=server_metrics
+
+# Опционально
+LOG_LEVEL=INFO
+CORS_ORIGINS=*
+```
+
+#### Frontend UI (.env)
+```env
+# Подключение к БД (прямое)
+DB_HOST=postgres
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=secure_password
+DB_NAME=server_metrics
+
+# API Backend (для некоторых операций)
+API_URL=http://dashboard:8000
+
+# Keycloak (опционально)
+KEYCLOAK_URL=http://keycloak:8087/keycloak
+KEYCLOAK_REALM=srv
+KEYCLOAK_CLIENT_ID=srv-keycloak-client
+KEYCLOAK_CLIENT_SECRET=change-me
 ```
 
 ---
 
-## Technology Stack
+## Технологический стек
 
-### Backend Stack
-```
-┌─────────────────────────────────────┐
-│         FastAPI 0.104.1            │
-│  - REST API Framework               │
-│  - Async support                    │
-│  - Auto-generated OpenAPI docs      │
-│  - Enhanced error handling          │
-│  - Input validation (Pydantic)      │
-└─────────────────────────────────────┘
-           │
-           ├─── SQLAlchemy 2.0.23
-           │    - ORM for PostgreSQL
-           │    - Error handling (SQLAlchemyError)
-           │
-           ├─── Pydantic 2.5.0
-           │    - Data validation
-           │    - Type safety
-           │
-           ├─── Prophet 1.1.5
-           │    - Time series forecasting
-           │
-           └─── Uvicorn 0.24.0
-                - ASGI server
-```
+### Backend
 
-### Frontend Stack
-```
-┌─────────────────────────────────────┐
-│      Streamlit 1.29.0               │
-│  - Interactive dashboard             │
-│  - Real-time updates                 │
-│  - Database integration              │
-│  - Data caching (@st.cache_data)     │
-└─────────────────────────────────────┘
-           │
-           ├─── Plotly 5.18.0
-           │    - Interactive charts
-           │
-           ├─── Pandas 2.1.4
-           │    - Data manipulation
-           │
-           └─── NumPy 1.26.2
-                - Numerical operations
-```
+| Компонент | Технология | Версия | Назначение |
+|-----------|-----------|--------|------------|
+| Framework | FastAPI | 0.104.1 | REST API, асинхронная обработка |
+| ORM | SQLAlchemy | 2.0.23 | Работа с PostgreSQL |
+| Валидация | Pydantic | 2.5.0 | Схемы данных, валидация |
+| ASGI Server | Uvicorn | 0.24.0 | Запуск FastAPI приложения |
+| База данных | PostgreSQL | 16.9 | Хранение временных рядов |
 
-### Testing Stack
-```
-┌─────────────────────────────────────┐
-│         Pytest 7.4.3                │
-│  - Unit testing                      │
-│  - Integration testing               │
-│  - Fixture management                │
-└─────────────────────────────────────┘
-           │
-           ├─── pytest-cov
-           │    - Coverage reporting
-           │
-           ├─── httpx
-           │    - HTTP client for testing
-           │
-           └─── SQLite (in-memory)
-                - Test database
-```
+### Frontend
 
-### Infrastructure Stack
-```
-┌─────────────────────────────────────┐
-│         Docker & Docker Compose     │
-│  - Containerization                  │
-│  - Multi-service orchestration       │
-└─────────────────────────────────────┘
-           │
-           ├─── PostgreSQL 16.9
-           │    - Time-series database
-           │
-           ├─── Apache HTTPd 2.4
-           │    - Reverse proxy
-           │    - SSL termination
-           │
-           ├─── Keycloak 26.4.6
-           │    - Identity management
-           │
-           └─── LLaMA Server
-                - AI/ML capabilities
-```
+| Компонент | Технология | Версия | Назначение |
+|-----------|-----------|--------|------------|
+| Framework | Streamlit | 1.29.0 | Интерактивный дашборд |
+| Визуализация | Plotly | 5.18.0 | Графики и диаграммы |
+| Данные | Pandas | 2.1.4 | Обработка DataFrame |
+| Вычисления | NumPy | 1.26.2 | Численные операции |
+
+### Machine Learning
+
+| Компонент | Технология | Версия | Назначение |
+|-----------|-----------|--------|------------|
+| Прогнозирование | Prophet | 1.1.5 | Временные ряды, тренды, сезонность |
+| Оптимизация | scikit-learn | - | Метрики качества (MAPE, MAE, RMSE) |
+
+### Testing
+
+| Компонент | Технология | Версия | Назначение |
+|-----------|-----------|--------|------------|
+| Test Framework | Pytest | 7.4.3 | Unit и интеграционные тесты |
+| Coverage | pytest-cov | - | Покрытие кода тестами |
+| HTTP Client | httpx | - | Тестирование API |
+| Test DB | SQLite | - | In-memory база для тестов |
+
+### Infrastructure
+
+| Компонент | Технология | Назначение |
+|-----------|-----------|------------|
+| Containerization | Docker + Docker Compose | Контейнеризация сервисов |
+| Reverse Proxy | Apache HTTPd 2.4 | Маршрутизация, SSL |
+| Auth (опционально) | Keycloak 26.4.6 | SSO, управление доступом |
 
 ---
 
-## Testing Architecture
+## Архитектура тестирования
 
-### Test Structure
+### Структура тестов
 
 ```
 tests/
 ├── __init__.py
-├── conftest.py              # Pytest fixtures and configuration
-├── test_dbcrud.py          # Unit tests for DBCRUD
-├── test_factscrud.py       # Unit tests for FactsCRUD
-├── test_predscrud.py       # Unit tests for PredsCRUD
-├── test_api_endpoints.py   # Integration tests for API
-├── requirements.txt        # Test dependencies
-└── README.md               # Test documentation
+├── conftest.py              # Фикстуры pytest
+├── test_dbcrud.py          # Unit-тесты DBCRUD
+├── test_factscrud.py       # Unit-тесты FactsCRUD
+├── test_predscrud.py       # Unit-тесты PredsCRUD
+├── test_api_endpoints.py   # Интеграционные тесты API
+├── test_anomaly_detector.py
+├── test_prophet_forecaster_prepare.py
+├── test_ui_alert_analyzer.py
+├── test_ui_alert_rules.py
+├── test_ui_data_loader.py
+├── test_utils_prepare_data.py
+├── requirements.txt
+└── README.md
 ```
 
-### Test Coverage
+### Покрытие тестами
 
-- **Unit Tests**: Test individual CRUD operations in isolation
-- **Integration Tests**: Test API endpoints with test database
-- **Fixtures**: Reusable test data and database sessions
-- **Test Database**: In-memory SQLite for fast, isolated tests
+```mermaid
+graph TB
+    subgraph "Unit Tests"
+        TestCRUD[test_dbcrud.py<br/>Тесты CRUD операций]
+        TestFacts[test_factscrud.py<br/>Тесты фактических метрик]
+        TestPreds[test_predscrud.py<br/>Тесты прогнозов]
+        TestAnomaly[test_anomaly_detector.py<br/>Тесты детектора аномалий]
+    end
+    
+    subgraph "Integration Tests"
+        TestAPI[test_api_endpoints.py<br/>Тесты REST API<br/>Эндпоинты]
+    end
+    
+    subgraph "UI Tests"
+        TestAlerts[test_ui_alert_*.py<br/>Тесты алертов]
+        TestLoader[test_ui_data_loader.py<br/>Тесты загрузчика данных]
+    end
+    
+    subgraph "Test Infrastructure"
+        Conftest[conftest.py<br/>Фикстуры<br/>TestDB SessionLocal]
+        TestDB[(SQLite In-Memory<br/>Тестовая БД)]
+    end
+    
+    TestCRUD --> Conftest
+    TestFacts --> Conftest
+    TestPreds --> Conftest
+    TestAPI --> Conftest
+    
+    Conftest --> TestDB
+    
+    style TestAPI fill:#ef9a9a
+    style Conftest fill:#e1bee7
+    style TestDB fill:#ce93d8
+```
 
-### Test Execution
+### Запуск тестов
 
 ```bash
-# Run all tests
+# Все тесты
 pytest
 
-# Run with coverage
+# С покрытием
 pytest --cov=src/app --cov-report=html
 
-# Run specific test.csv file
+# Конкретный файл
 pytest tests/test_api_endpoints.py
 
-# Run with verbose output
+# Verbose режим
 pytest -v
+
+# Windows
+run_tests.bat
 ```
 
 ---
 
-## Error Handling Architecture
+## Обработка ошибок
 
-### Error Handling Layers
+### Уровни обработки
 
 ```mermaid
 graph TB
-    subgraph "API Layer"
+    subgraph "API слой"
         Endpoint[API Endpoint]
-        Validator[Input Validation<br/>Pydantic]
+        Validator[Pydantic валидация]
     end
     
-    subgraph "Helper Layer"
-        DateValidator[validate_date_range]
-        ErrorHandler[handle_database_error]
-        SchemaConverter[db_metric_to_schema<br/>db_prediction_to_schema]
+    subgraph "Helper слой"
+        DateVal[validate_date_range<br/>Валидация дат]
+        ErrorHandler[handle_database_error<br/>Обработка ошибок БД]
+        SchemaConv[db_metric_to_schema<br/>Конвертация схем]
     end
     
-    subgraph "Business Logic Layer"
-        CRUD[CRUD Operations]
+    subgraph "Бизнес-логика"
+        CRUD[CRUD операции]
     end
     
-    subgraph "Database Layer"
+    subgraph "База данных"
         DB[(PostgreSQL)]
     end
     
-    subgraph "Logging Layer"
-        Logger[base_logger.py]
+    subgraph "Логирование"
+        Logger[base_logger.py<br/>Структурированные логи]
     end
     
     Endpoint --> Validator
-    Validator -->|Valid| DateValidator
-    DateValidator -->|Valid| CRUD
+    Validator -->|Valid| DateVal
+    DateVal -->|Valid| CRUD
     CRUD --> DB
     
-    CRUD -->|Error| ErrorHandler
-    DB -->|Error| ErrorHandler
+    CRUD -->|SQLAlchemyError| ErrorHandler
+    DB -->|IntegrityError| ErrorHandler
     ErrorHandler --> Logger
     ErrorHandler -->|HTTPException| Endpoint
     
-    CRUD -->|Success| SchemaConverter
-    SchemaConverter --> Endpoint
+    CRUD -->|Success| SchemaConv
+    SchemaConv --> Endpoint
     
     style Endpoint fill:#4caf50
     style Validator fill:#81c784
@@ -714,289 +687,352 @@ graph TB
     style Logger fill:#9e9e9e
 ```
 
-### Error Types and Handling
+### Типы ошибок
 
-1. **Validation Errors (400 Bad Request)**
-   - Empty VM/metric names
-   - Invalid date ranges
-   - Value out of range (0-100)
-   - Missing required parameters
+| HTTP Code | Тип ошибки | Причина | Обработка |
+|-----------|-----------|---------|-----------|
+| 400 | Bad Request | Невалидные параметры, пустые значения | Pydantic валидация |
+| 404 | Not Found | VM/метрика не найдена | CRUD слой |
+| 409 | Conflict | Дубликаты, нарушение уникальности | IntegrityError обработка |
+| 500 | Internal Server Error | Ошибки БД, непредвиденные исключения | handle_database_error() |
 
-2. **Database Errors**
-   - **IntegrityError (409 Conflict)**: Duplicate records, constraint violations
-   - **SQLAlchemyError (500 Internal Server Error)**: Connection issues, query errors
-
-3. **Not Found Errors (404)**
-   - VM/metric not found
-   - No data for time range
-
-4. **Unexpected Errors (500)**
-   - Caught with full stack trace logging
-   - Generic error message to client
-
-### Constants and Configuration
-
-The API uses constants for limits and defaults:
+### Константы и лимиты
 
 ```python
-DEFAULT_LIMIT = 5000          # Default query limit
-MAX_LIMIT = 10000             # Maximum query limit
-DEFAULT_HOURS = 24            # Default hours for latest queries
-MAX_HOURS = 720               # Maximum hours (30 days)
-DEFAULT_DAYS_TO_KEEP = 90     # Default cleanup retention
-MAX_DAYS_TO_KEEP = 365        # Maximum cleanup retention
-MIN_INTERVAL_MINUTES = 1      # Minimum interval for completeness
-MAX_INTERVAL_MINUTES = 1440   # Maximum interval (24 hours)
-DEFAULT_INTERVAL_MINUTES = 30 # Default interval
+# Из endpoints.py
+DEFAULT_LIMIT = 5000          # Лимит по умолчанию
+MAX_LIMIT = 10000             # Максимальный лимит
+DEFAULT_HOURS = 24            # Часы по умолчанию
+MAX_HOURS = 720               # Макс часы (30 дней)
+DEFAULT_DAYS_TO_KEEP = 90     # Хранение данных
+MAX_DAYS_TO_KEEP = 365        # Максимальное хранение
+MIN_INTERVAL_MINUTES = 1      # Минимальный интервал
+MAX_INTERVAL_MINUTES = 1440   # Макс интервал (24 часа)
+DEFAULT_INTERVAL_MINUTES = 30 # Интервал по умолчанию
 ```
 
 ---
 
-## Module Dependencies
+## Модуль прогнозирования
 
-### Backend Dependencies Graph
+### Архитектура ProphetForecaster
+
+#### Основные возможности
+
+1. **Обучение моделей** с кросс-валидацией
+2. **Подбор гиперпараметров** (Grid Search с параллелизацией)
+3. **Временные признаки**: час, день недели, месяц, квартал, выходные и т.д.
+4. **Оценка качества**: MAPE, MAE, RMSE
+5. **Сохранение/загрузка** обученных моделей
+6. **Генерация прогнозов** с доверительными интервалами
+
+#### Гиперпараметры для подбора
+
+```python
+# Из forecast.py
+param_grid = {
+    'seasonality_mode': ['additive', 'multiplicative'],
+    'changepoint_prior_scale': [0.01, 0.05, 0.1, 0.2],
+    'seasonality_prior_scale': [3.0, 5.0, 10.0, 15.0],
+    'holidays_prior_scale': [5.0, 10.0],
+    'changepoint_range': [0.8, 0.9, 0.95],
+    'n_changepoints': [15, 25, 35],
+    'daily_seasonality': True,
+    'weekly_seasonality': True
+}
+```
+
+#### Временные признаки (Регрессоры)
+
+- `hour` - час дня (0-23)
+- `day_of_week` - день недели (0-6)
+- `day_of_month` - день месяца (1-31)
+- `week_of_year` - неделя года (1-52)
+- `month` - месяц (1-12)
+- `quarter` - квартал (1-4)
+- `is_weekend` - выходной день (0/1)
+- `is_month_start` - начало месяца (0/1)
+- `is_month_end` - конец месяца (0/1)
+- `is_quarter_start` - начало квартала (0/1)
+- `is_quarter_end` - конец квартала (0/1)
+- `is_year_start` - начало года (0/1)
+- `is_year_end` - конец года (0/1)
+
+#### Процесс прогнозирования
 
 ```mermaid
-graph TD
-    main[main.py] --> endpoints[api/endpoints.py]
-    main --> connection[connection.py]
-    main --> models[models.py]
+sequenceDiagram
+    participant UI as Forecast UI
+    participant Forecaster as generate_forecast_for_server
+    participant Tuning as Hyperparameter Tuning
+    participant Prophet as Prophet Model
+    participant Evaluation as Evaluation
     
-    endpoints --> dbcrud[dbcrud.py]
-    endpoints --> facts_crud[facts_crud.py]
-    endpoints --> preds_crud[preds_crud.py]
-    endpoints --> connection
-    endpoints --> helpers[Helper Functions]
-    endpoints --> constants[Constants]
+    UI->>Forecaster: prophet_df, forecast_days
+    Forecaster->>Forecaster: add_time_features()
     
-    dbcrud --> models
-    dbcrud --> connection
-    facts_crud --> models
-    facts_crud --> connection
-    preds_crud --> models
-    preds_crud --> connection
+    alt Достаточно данных для CV
+        Forecaster->>Tuning: evaluate_with_cv(param_grid)
+        Tuning->>Tuning: Cross-validation (n_splits)
+        loop Для каждой комбинации параметров
+            Tuning->>Prophet: train(params)
+            Prophet-->>Tuning: model
+            Tuning->>Evaluation: calculate_mape()
+            Evaluation-->>Tuning: score
+        end
+        Tuning-->>Forecaster: best_params, best_score
+    else Мало данных
+        Forecaster->>Tuning: evaluate_with_holdout()
+        Tuning->>Prophet: train(params)
+        Prophet-->>Tuning: model
+        Tuning->>Evaluation: calculate_mape(val_data)
+        Evaluation-->>Tuning: score
+        Tuning-->>Forecaster: best_params, best_score
+    end
     
-    forecaster[forecaster.py] --> dbcrud
-    forecaster --> connection
-    forecaster --> storage[storage.py]
+    Forecaster->>Prophet: train(all_data, best_params)
+    Prophet-->>Forecaster: final_model
     
-    anomaly[anomaly_detector.py] --> dbcrud
+    Forecaster->>Prophet: make_future_dataframe(periods)
+    Prophet->>Forecaster: future_df
+    Forecaster->>Prophet: predict(future_df + features)
+    Prophet-->>Forecaster: forecast
     
-    models --> connection
+    Forecaster->>Evaluation: quality_metrics(history)
+    Evaluation-->>Forecaster: MAPE, MAE, RMSE
     
-    style main fill:#4caf50
-    style endpoints fill:#81c784
-    style dbcrud fill:#66bb6a
-    style facts_crud fill:#66bb6a
-    style preds_crud fill:#66bb6a
-    style forecaster fill:#ff9800
-    style models fill:#2196f3
-    style connection fill:#9e9e9e
-    style helpers fill:#9ccc65
-    style constants fill:#9ccc65
+    Forecaster-->>UI: forecast, metrics
 ```
+
+### Метрики качества
+
+#### MAPE (Mean Absolute Percentage Error)
+
+```python
+MAPE = mean(|actual - predicted| / actual) × 100%
+```
+
+**Интерпретация**:
+- MAPE < 10% - отличное качество (зеленый)
+- MAPE 10-20% - хорошее качество (желтый)
+- MAPE 20-30% - среднее качество (оранжевый)
+- MAPE > 30% - низкое качество (красный)
+
+#### MAE (Mean Absolute Error)
+
+```python
+MAE = mean(|actual - predicted|)
+```
+
+#### RMSE (Root Mean Squared Error)
+
+```python
+RMSE = sqrt(mean((actual - predicted)²))
+```
+
+### Анализ рисков
+
+Автоматическая оценка уровня риска на основе прогнозной нагрузки:
+
+| Уровень риска | Диапазон нагрузки | Рекомендации |
+|--------------|-------------------|--------------|
+| 🟩 Низкий | < 50% | Система стабильна, плановое обслуживание |
+| 🟨 Средний | 50-70% | Мониторинг, подготовка к масштабированию |
+| 🟧 Высокий | 70-85% | Планирование ресурсов, настройка алертов |
+| 🟥 Критический | > 85% | Срочное масштабирование, балансировка нагрузки |
 
 ---
 
-## API Endpoints Structure
+## API Endpoints
+
+### Основные группы
 
 ```mermaid
 graph LR
-    API[FastAPI App<br/>/api/v1] --> Database[Database Operations<br/>/vms, /stats, /cleanup]
-    API --> Facts[Fact Metrics<br/>/facts, /facts/batch<br/>/facts/latest]
-    API --> Predictions[Predictions<br/>/predictions, /predictions/batch<br/>/predictions/future]
-    API --> Legacy[Legacy Endpoints<br/>/metrics, /latest_metrics]
-    
-    Database --> Validation[Input Validation<br/>Error Handling]
-    Facts --> Validation
-    Predictions --> Validation
-    Legacy --> Validation
+    API[FastAPI App<br/>/api/v1] --> DB_Ops[Database Ops<br/>/vms, /stats, /cleanup]
+    API --> Facts[Fact Metrics<br/>/facts, /facts/batch]
+    API --> Preds[Predictions<br/>/predictions, /predictions/batch]
+    API --> Legacy[Legacy<br/>/metrics, /latest_metrics]
     
     style API fill:#4caf50
-    style Database fill:#81c784
+    style DB_Ops fill:#81c784
     style Facts fill:#81c784
-    style Predictions fill:#81c784
+    style Preds fill:#81c784
     style Legacy fill:#ff9800
-    style Validation fill:#ffeb3b
 ```
 
-**Current Endpoints:**
-- **Database Operations**: `/vms`, `/vms/{vm}/metrics`, `/stats`, `/cleanup`, `/completeness`, `/missing-data`
-- **Fact Metrics**: `/facts`, `/facts/batch`, `/facts/latest`, `/facts/statistics`
-- **Predictions**: `/predictions`, `/predictions/batch`, `/predictions/future`, `/predictions/compare`
-- **Legacy**: `/metrics`, `/latest_metrics` (for backward compatibility)
+### Ключевые эндпоинты
+
+| Метод | Путь | Назначение |
+|-------|------|-----------|
+| GET | `/api/v1/vms` | Список всех VM |
+| GET | `/api/v1/vms/{vm}/metrics` | Метрики конкретной VM |
+| GET | `/api/v1/facts` | Фактические метрики с фильтрами |
+| POST | `/api/v1/facts/batch` | Массовая загрузка метрик |
+| GET | `/api/v1/facts/latest` | Последние метрики |
+| GET | `/api/v1/predictions` | Прогнозы с фильтрами |
+| POST | `/api/v1/predictions/batch` | Массовая загрузка прогнозов |
+| GET | `/api/v1/predictions/future` | Будущие прогнозы |
+| GET | `/api/v1/predictions/compare` | Сравнение факт vs прогноз |
+| GET | `/api/v1/stats` | Статистика БД |
+| DELETE | `/api/v1/cleanup` | Очистка старых данных |
+
+**Документация**: `http://localhost:8000/docs` (Swagger UI)
 
 ---
 
-## Data Processing Pipeline
-
-```mermaid
-graph LR
-    Raw[Raw Data<br/>CSV/Excel] --> Prep[Data Preparation<br/>utils/prepare_data.py]
-    Prep --> Load[Data Loader<br/>utils/data_loader.py<br/>Primary Source]
-    Load --> DB[(PostgreSQL<br/>server_metrics_fact)]
-    DB --> Query[CRUD Operations<br/>dbcrud.py, facts_crud.py]
-    Query --> Forecast[Forecasting<br/>forecaster.py]
-    Forecast --> Predictions[(Predictions<br/>server_metrics_predictions)]
-    Predictions --> UI[Dashboard<br/>Streamlit<br/>data_loader.py]
-    
-    Fallback[Data Generator<br/>utils/data_generator.py<br/>Fallback] -.->|If DB unavailable| UI
-    
-    style Raw fill:#ffeb3b
-    style Prep fill:#ffc107
-    style Load fill:#ff9800
-    style DB fill:#2196f3
-    style Query fill:#4caf50
-    style Forecast fill:#9c27b0
-    style Predictions fill:#2196f3
-    style UI fill:#f44336
-    style Fallback fill:#ffd43b
-```
-
----
-
-## Security Architecture (Planned)
-
-```mermaid
-graph TB
-    Client[Client Browser] --> HTTPd[Apache HTTPd]
-    HTTPd -->|SSL/TLS| HTTPS[HTTPS Termination]
-    HTTPS --> Auth[Keycloak<br/>Authentication]
-    Auth -->|JWT Token| API[FastAPI API]
-    API -->|Validate Token| Auth
-    API -->|Authorized Request| DB[(Database)]
-    
-    style Client fill:#e1f5ff
-    style HTTPd fill:#fff4e1
-    style Auth fill:#fff9c4
-    style API fill:#e8f5e9
-    style DB fill:#f3e5f5
-```
-
-**Note:** Authentication is configured but not fully implemented in the current codebase.
-
----
-
-## File Structure Overview
+## Структура файлов проекта
 
 ```
-dashboard/
+servers-dashboard/
 ├── src/
-│   ├── app/              # FastAPI Backend
-│   │   ├── api/         # API endpoints
-│   │   │   └── endpoints.py  # Enhanced with error handling
-│   │   ├── models.py    # Database models
-│   │   ├── schemas.py   # Pydantic schemas
-│   │   ├── dbcrud.py    # Database operations
-│   │   ├── facts_crud.py # Fact metrics CRUD
-│   │   ├── preds_crud.py # Predictions CRUD
-│   │   └── main.py      # FastAPI app
+│   ├── app/                          # FastAPI Backend
+│   │   ├── main.py                   # Точка входа FastAPI
+│   │   ├── endpoints.py              # REST API эндпоинты
+│   │   ├── models.py                 # SQLAlchemy модели
+│   │   ├── schemas.py                # Pydantic схемы
+│   │   ├── connection.py             # Подключение к БД
+│   │   ├── dbcrud.py                 # Базовый CRUD
+│   │   ├── facts_crud.py             # CRUD фактических метрик
+│   │   ├── preds_crud.py             # CRUD прогнозов
+│   │   ├── anomaly_detector.py       # Детектор аномалий
+│   │   ├── base_logger.py            # Логирование
+│   │   └── requirements.txt
 │   │
-│   └── ui/              # Streamlit Frontend
-│       ├── pages/       # Page components
-│       │   ├── fact.py      # Database integrated
-│       │   ├── forecast.py  # Database integrated
-│       │   └── analysis.py  # Database integrated
-│       ├── components/  # UI components
-│       └── utils/       # UI utilities
-│           ├── data_loader.py   # Primary data source
-│           └── data_generator.py # Fallback generator
+│   └── ui/                           # Streamlit Frontend
+│       ├── main.py                   # Точка входа Streamlit
+│       ├── pages/                    # Страницы дашборда
+│       │   ├── fact.py               # Фактические метрики
+│       │   ├── forecast.py           # Прогнозирование
+│       │   ├── analysis.py           # Анализ по серверам
+│       │   └── as_analysis.py        # Анализ по АС
+│       ├── components/               # UI компоненты
+│       │   ├── header.py
+│       │   ├── sidebar.py
+│       │   ├── footer.py
+│       │   ├── heatmap_as_cpu.py
+│       │   └── heatmap_as_mem.py
+│       ├── utils/                    # Утилиты UI
+│       │   ├── data_loader.py        # Загрузка данных из БД
+│       │   ├── data_generator.py     # Генератор моков
+│       │   ├── alert_rules.py        # Правила алертов
+│       │   ├── alert_analyzer.py     # Анализатор алертов
+│       │   └── base_logger.py
+│       ├── assets/
+│       │   └── style.css             # Стили
+│       └── requirements.txt
 │
-├── forecast/            # Forecasting module
-│   ├── forecaster.py    # Main interface
-│   ├── model_training.py
-│   ├── model_tuning.py
-│   └── ...
+├── notebooks/
+│   └── forecast/                     # Модуль прогнозирования
+│       ├── forecaster.py             # Главный интерфейс
+│       ├── model_training.py         # Обучение моделей
+│       ├── model_tuning.py           # Подбор гиперпараметров
+│       ├── model_prediction.py       # Генерация прогнозов
+│       ├── storage.py                # Сохранение/загрузка
+│       ├── evaluation.py             # Оценка качества
+│       ├── utils.py                  # Утилиты
+│       ├── config.py                 # Конфигурация
+│       └── db_utils.py               # Работа с БД
 │
-├── tests/               # Test suite
-│   ├── conftest.py      # Test fixtures
-│   ├── test_dbcrud.py   # Unit tests
+├── ETL/                              # ETL Pipeline
+│   ├── prepare_data.py               # Подготовка данных
+│   ├── data_loader.py                # Загрузчик данных
+│   └── new_data.py
+│
+├── tests/                            # Тесты
+│   ├── conftest.py                   # Фикстуры pytest
+│   ├── test_dbcrud.py
 │   ├── test_factscrud.py
 │   ├── test_predscrud.py
-│   ├── test_api_endpoints.py  # Integration tests
-│   └── README.md
+│   ├── test_api_endpoints.py
+│   ├── test_anomaly_detector.py
+│   ├── test_prophet_forecaster_prepare.py
+│   └── test_ui_*.py
 │
-├── docker/              # Docker configurations
-│   ├── app/            # API container
-│   ├── ui/             # UI container
-│   ├── postgres/       # Database container
-│   └── httpd/          # Reverse proxy
+├── docker/                           # Docker конфигурация
+│   └── all/
+│       └── docker-compose.yml        # Полный стек
 │
-├── notebooks/          # Jupyter notebooks
-└── data/              # Data files
-    ├── source/        # Raw data
-    └── processed/     # Processed data
+├── data/                             # Данные
+│   ├── source/                       # Исходные файлы
+│   │   ├── all_vm.xlsx               # Маппинг серверов на АС
+│   │   └── data.xlsx
+│   ├── dbdata/                       # Данные для загрузки
+│   ├── dbextract/                    # Экспорты из БД
+│   └── graphics/                     # Сохраненные графики
+│
+├── docs/                             # Документация
+│   ├── ARCHITECTURE.md               # Этот файл
+│   ├── API_ENDPOINTS.md              # API документация
+│   ├── TESTING.md                    # Тестирование
+│   └── PROJECT_SUMMARY_RU.md         # Краткое описание
+│
+├── README.md                         # Главный README
+├── requirements.txt                  # Общие зависимости
+├── pytest.ini                        # Конфигурация pytest
+├── pyproject.toml                    # Конфигурация проекта
+└── LICENSE
 ```
 
 ---
 
-## Performance Considerations
+## Рекомендации по улучшению
 
-### Current Architecture
-- **Synchronous database operations** (SQLAlchemy ORM)
-- **No caching layer** (Redis/Memcached)
-- **Direct database queries** from UI (with fallback to generator)
-- **File-based model storage** (could use object storage)
-- **Streamlit caching** (`@st.cache_data`) for UI performance
+### Производительность
 
-### Recommended Improvements
-1. **Add Redis** for caching frequently accessed data
-2. **Implement async database operations** (async SQLAlchemy)
-3. **Add API gateway** for rate limiting
-4. **Use object storage** (S3/MinIO) for model files
-5. **Implement connection pooling** optimization
-6. **Add database read replicas** for scaling
-7. **Implement response caching** for API endpoints
+1. **Кэширование** - добавить Redis для кэширования запросов
+2. **Асинхронность** - перейти на async SQLAlchemy
+3. **Connection Pooling** - оптимизация пула подключений
+4. **Read Replicas** - реплики БД для чтения
+5. **API Gateway** - rate limiting, throttling
 
----
+### Безопасность
 
-## Monitoring & Observability (Planned)
+1. **CORS** - ограничить origins в продакшене
+2. **Аутентификация** - завершить интеграцию Keycloak
+3. **Secrets Management** - использовать vault для секретов
+4. **HTTPS** - включить SSL в production
+5. **Input Sanitization** - дополнительная валидация входных данных
 
-```mermaid
-graph TB
-    App[Application] --> Logs[Logging<br/>base_logger.py<br/>Enhanced Error Logging]
-    App --> Metrics[Prometheus<br/>Metrics]
-    Metrics --> Grafana[Grafana<br/>Dashboards]
-    Logs --> ELK[ELK Stack<br/>Log Aggregation]
-    
-    style App fill:#4caf50
-    style Logs fill:#ff9800
-    style Metrics fill:#2196f3
-    style Grafana fill:#9c27b0
-    style ELK fill:#f44336
-```
+### Мониторинг
 
-**Current State:**
-- Enhanced file-based logging with error context
-- Structured error logging with stack traces
-- No metrics collection
-- No distributed tracing
+1. **Prometheus** - сбор метрик
+2. **Grafana** - визуализация метрик
+3. **ELK Stack** - централизованное логирование
+4. **Distributed Tracing** - OpenTelemetry
+5. **Health Checks** - эндпоинты health и readiness
+
+### Scalability
+
+1. **Horizontal Scaling** - масштабирование API и UI
+2. **Load Balancer** - балансировка нагрузки
+3. **Database Sharding** - шардирование БД по VM
+4. **Object Storage** - S3/MinIO для моделей
+5. **Message Queue** - RabbitMQ/Kafka для асинхронных задач
 
 ---
 
-## Conclusion
+## Заключение
 
-This architecture provides a solid foundation for an AIOps dashboard with time-series forecasting capabilities. The modular design allows for independent scaling of components and clear separation of concerns.
+Архитектура AIOps Dashboard обеспечивает:
 
-**Key Strengths:**
-- Clear separation between frontend and backend
-- Modular forecasting engine
-- Containerized deployment
-- Well-structured database schema
-- Comprehensive error handling
-- Input validation and type safety
-- Test coverage with unit and integration tests
-- Database integration in UI with fallback mechanism
+✅ **Модульность** - четкое разделение компонентов  
+✅ **Масштабируемость** - готовность к горизонтальному масштабированию  
+✅ **Надежность** - обработка ошибок, валидация, тестирование  
+✅ **Производительность** - оптимизация запросов, индексы БД  
+✅ **Удобство** - интерактивный UI, REST API, документация  
+✅ **ML/AI** - прогнозирование с Prophet, подбор гиперпараметров  
 
-**Areas for Improvement:**
-- Add caching layer (Redis)
-- Implement full authentication
-- Add comprehensive monitoring
-- Optimize for async operations
-- Add API versioning
-- Implement rate limiting
+### Ключевые преимущества
+
+- Прямое подключение UI к БД для минимальной латентности
+- Модуль прогнозирования с автоматическим подбором гиперпараметров
+- Комплексная обработка ошибок и валидация данных
+- Анализ по Автоматизированным Системам (АС)
+- Docker-based развертывание для всех сред
 
 ---
 
-*Last Updated: 2025-01-27*  
-*Version: 2.0*
+**Версия документа**: 3.0  
+**Дата**: 2026-01-19  
+**Автор**: AIOps Dashboard Team
