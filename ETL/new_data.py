@@ -26,9 +26,9 @@ def read_csv_special(file_path: str):
     return pd.read_csv(StringIO(content))
 
 
-def process_new_data(in_file='../data/source/08_01-11_01.txt',
-                     out_file='../data/processed/data08_01-11_01.xlsx') -> pd.DataFrame:
-    """Читаем новый чанк данных за 08.01 по 11.01"""
+def process_new_data(in_file='../data/source/12_01-18_01.txt',
+                     out_file='../data/processed/data12_01-18_01.xlsx') -> pd.DataFrame:
+    """Читаем новый чанк данных за 12.01 по 18.01"""
     try:
         # Читаем CSV с правильными параметрами для вашего формата
         df = read_csv_special(in_file)
@@ -254,7 +254,7 @@ if __name__ == '__main__':
     # print(f"Количество временных меток: {len(pivot_table.columns) - 1}")  # -1 для столбца 'vm'
 
     # Готовим самые новые данные
-    df = process_new_data(in_file=r'C:\Users\audit\Work\Arina\Servers\dashboard\data\source\08_01-11_01.txt',
-                          out_file=r'C:\Users\audit\Work\Arina\Servers\dashboard\data\processed\data08_01-11_01.xlsx')
+    df = process_new_data(in_file=r'C:\Users\audit\Work\Arina\Servers\dashboard\data\source\12_01-18_01.txt',
+                          out_file=r'C:\Users\audit\Work\Arina\Servers\dashboard\data\processed\data12_01-18_01.xlsx')
     print(df.head())
 
