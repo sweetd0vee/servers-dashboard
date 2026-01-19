@@ -1,39 +1,46 @@
 FROM python:3.12-slim
 
-RUN mkdir /work
-
-WORKDIR /work
+RUN mkdir /servers-dashboard
+WORKDIR /servers-dashboard
 
 #copy requirements from ui
-COPY ./src/ui/requirements.txt /work
-RUN pip install --no-cache-dir --timeout 1000 --retries 5 -r requirements.txt
+COPY ./src/ui/requirements.txt /servers-dashboard/requirements.txt
+RUN pip install  --upgrade pip --no-cache-dir --timeout 1000 --retries 5 -r requirements.txt
 
 #tmp use requirements from app
-COPY ./src/app/requirements.txt /work/requirements2.txt
-RUN pip install --no-cache-dir --timeout 1000 --retries 5 -r requirements2.txt
+COPY ./src/app/requirements.txt /servers-dashboard/requirements2.txt
+RUN pip install  --upgrade pip --no-cache-dir --timeout 1000 --retries 5 -r requirements2.txt
 
 
-RUN mkdir /work/ui
-RUN mkdir /work/ui/assets
-RUN mkdir /work/ui/components
-RUN mkdir /work/ui/pages
-RUN mkdir /work/ui/ETL
+RUN mkdir /servers-dashboard/data
+RUN mkdir /servers-dashboard/data/source
 
-#tmp use app, later it is a separate service
-RUN mkdir /work/app
+RUN mkdir /servers-dashboard/src
+RUN mkdir /servers-dashboard/src/ui
+RUN mkdir /servers-dashboard/src/ui/assets
+RUN mkdir /servers-dashboard/src/ui/components
+RUN mkdir /servers-dashboard/src/ui/pages
+RUN mkdir /servers-dashboard/src/ui/utils
 
-COPY ./src/ui/*.py /work/ui
-COPY ./src/ui/assets/*.* /work/ui/assets
-COPY ./src/ui/components/*.py /work/ui/components
-COPY ./src/ui/pages/*.py /work/ui/pages
-COPY ./src/ui/utils/*.py /work/ui/utils
+RUN mkdir /servers-dashboard/ETL
 
 #tmp use app, later it is a separate service
-COPY ./src/app/*.py /work/app
+RUN mkdir /servers-dashboard/src/app
+
+COPY ./src/ui/*.py /servers-dashboard/src/ui
+COPY ./src/ui/assets/*.* /servers-dashboard/src/ui/assets
+COPY ./src/ui/components/*.py /servers-dashboard/src/ui/components
+COPY ./src/ui/pages/*.py /servers-dashboard/src/ui/pages
+COPY ./src/ui/utils/*.py /servers-dashboard/src/ui/utils
+
+COPY ./ETL/*.py /servers-dashboard/ETL
+
+#tmp use app, later it is a separate service
+COPY ./src/app/*.py /servers-dashboard/src/app
 
 
-COPY ./base_logger.py /work
+COPY ./base_logger.py /servers-dashboard
 
-WORKDIR /work/ui
+WORKDIR /servers-dashboard/src/ui
 
 CMD ["streamlit", "run", "main.py"]
