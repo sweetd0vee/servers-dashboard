@@ -64,16 +64,16 @@ def main():
     from pages import analysis, as_analysis, fact, forecast
 
     # Вкладка 1: Факт
-    with tab1:
-        fact.show()
-
-    # Вкладка 2: Общий анализ по серверам
-    with tab2:
-        analysis.show()
-
-    # Вкладка 3: Анализ в срезе АС
-    with tab3:
-        as_analysis.show()
+    # with tab1:
+    #     fact.show()
+    #
+    # # Вкладка 2: Общий анализ по серверам
+    # with tab2:
+    #     analysis.show()
+    #
+    # # Вкладка 3: Анализ в срезе АС
+    # with tab3:
+    #     as_analysis.show()
 
     # Вкладка 4: Прогноз по АС
     with tab4:

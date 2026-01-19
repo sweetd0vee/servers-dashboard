@@ -25,9 +25,8 @@ logger = logging.getLogger(__name__)
 
 # Импортируем модули для загрузки данных из базы
 try:
-    from app.prophet_forecaster import ProphetForecaster
     from utils.base_logger import logger
-    from utils.data_loader import generate_server_data, load_data_from_database
+    from utils.data_loader import load_data_from_database, generate_server_data
 except ImportError as e:
     logger.warning(f"Ошибка импорта: {e}")
 
@@ -166,14 +165,7 @@ def load_historical_data_for_as(as_name, as_mapping, history_days=30):
         st.info(f"Найдено серверов в АС '{as_name}': {len(servers_in_as)}")
         
         # Загружаем данные для этих серверов
-        if load_data_from_database:
-            try:
-                data = load_data_from_database(start_date=start_date, end_date=end_date)
-                st.success(f"Загружено {len(data)} записей из БД")
-            except Exception as db_error:
-                st.warning(f"Ошибка загрузки из БД: {db_error}")
-                
-        
+        data = load_data_from_database(start_date=start_date, end_date=end_date)
         # Фильтруем по серверам этой АС
         if 'server' in data.columns and 'as_name' not in data.columns:
             data['as_name'] = data['server'].map(as_mapping)
