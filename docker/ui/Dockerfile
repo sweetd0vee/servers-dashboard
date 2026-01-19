@@ -27,6 +27,8 @@ RUN mkdir /servers-dashboard/ETL
 #tmp use app, later it is a separate service
 RUN mkdir /servers-dashboard/src/app
 
+COPY ./data/source/all_vm.xlsx /servers-dashboard/data/source/all_vm.xlsx
+
 COPY ./src/ui/*.py /servers-dashboard/src/ui
 COPY ./src/ui/assets/*.* /servers-dashboard/src/ui/assets
 COPY ./src/ui/components/*.py /servers-dashboard/src/ui/components

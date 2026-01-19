@@ -34,15 +34,15 @@ except ImportError:
         data_loader = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(data_loader)
         load_data_from_database = data_loader.load_data_from_database
-        generate_server_data = data_loader.generate_server_data  # Исправлено: data_loader вместо data_generator
-    else:
+        # generate_server_data = data_loader.generate_server_data  # Исправлено: data_loader вместо data_generator
+    # else:
         # Если нет data_loader, пробуем data_generator
-        data_generator_path = os.path.join(parent_dir, 'utils', 'data_generator.py')
-        spec = importlib.util.spec_from_file_location("data_generator", data_generator_path)
-        data_generator = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(data_generator)
-        generate_server_data = data_generator.generate_server_data
-        load_data_from_database = None
+        # data_generator_path = os.path.join(parent_dir, 'utils', 'data_generator.py')
+        # spec = importlib.util.spec_from_file_location("data_generator", data_generator_path)
+        # data_generator = importlib.util.module_from_spec(spec)
+        # spec.loader.exec_module(data_generator)
+        # generate_server_data = data_generator.generate_server_data
+        # load_data_from_database = None
 
     # Проверяем наличие модуля с маппингом АС
     as_mapping_path = os.path.join(parent_dir, 'utils', 'as_mapping.py')
