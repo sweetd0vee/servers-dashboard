@@ -2966,18 +2966,6 @@ def show():
                             sort_order
                         )
                         
-                        # Обновляем заголовок с фильтром
-                        filter_text = filter_texts.get(st.session_state.get('quick_ram_filter', 'all'), 'Все')
-                        fig_heatmap_mem.update_layout(
-                            title=dict(
-                                text=f"Нагрузка памяти по серверам в разрезе АС<br><sup>Сортировка: {sort_by}, {sort_order} | Фильтр: {filter_text}</sup>",
-                                font=dict(size=18, color='black'),
-                                x=0.5,
-                                xanchor='center',
-                                y=0.95
-                            )
-                        )
-
                         # Отображаем тепловую карту
                         st.markdown(
                             f"""
@@ -3254,18 +3242,6 @@ def show():
                             server_ram_capacity_map,
                             sort_by_cpu,
                             sort_order_cpu
-                        )
-                        
-                        # Обновляем заголовок с фильтром
-                        filter_text = filter_texts.get(st.session_state.get('quick_ram_filter', 'all'), 'Все')
-                        fig_heatmap_cpu.update_layout(
-                            title=dict(
-                                text=f"Нагрузка CPU по серверам в разрезе АС<br><sup>Сортировка: {sort_by_cpu}, {sort_order_cpu} | Фильтр: {filter_text}</sup>",
-                                font=dict(size=18, color='black'),
-                                x=0.5,
-                                xanchor='center',
-                                y=0.95
-                            )
                         )
 
                         # Отображаем тепловую карту CPU

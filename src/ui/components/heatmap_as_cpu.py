@@ -177,16 +177,9 @@ def create_as_cpu_heatmap(
     # Calculate chart height
     chart_height = max(600, len(y_labels) * 25)
     
-    # Update layout
+    # Update layout (без заголовка на карте)
     fig.update_layout(
         height=chart_height,
-        title=dict(
-            text=f"Нагрузка CPU по серверам в разрезе АС<br><sup>Сортировка: {sort_by}, {sort_order}</sup>",
-            font=dict(size=18, color='black'),
-            x=0.5,
-            xanchor='center',
-            y=0.95
-        ),
         xaxis=dict(
             title="Время суток (интервалы по 30 минут)",
             tickmode='array',
@@ -202,7 +195,7 @@ def create_as_cpu_heatmap(
             tickfont=dict(size=9),
             automargin=True
         ),
-        margin=dict(l=200, r=50, t=120, b=100),
+        margin=dict(l=200, r=50, t=50, b=100),
         plot_bgcolor='white',
         paper_bgcolor='white'
     )
