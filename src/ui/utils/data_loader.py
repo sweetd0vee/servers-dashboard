@@ -78,30 +78,28 @@ def load_server_data_from_db(
         # Calculate start date
         start_date = datetime.now() - timedelta(hours=hours)
         
-        # Collect all data
-        all_data = []
+        # One bulk query instead of N_VMs * N_metrics round-trips
+        try:
+            records = crud_facts.get_metrics_fact_bulk(
+                vms=vms,
+                metrics=metrics,
+                start_date=start_date,
+                end_date=None,
+                limit=100000,
+            )
+        except Exception as e:
+            print(f"Error bulk loading data: {e}")
+            records = []
         
-        for vm in vms:
-            for metric in metrics:
-                try:
-                    # Get metrics for this VM and metric
-                    records = crud_facts.get_metrics_fact(
-                        vm=vm,
-                        metric=metric,
-                        start_date=start_date,
-                        limit=10000  # Limit to prevent memory issues
-                    )
-                    
-                    for record in records:
-                        all_data.append({
-                            'vm': vm,
-                            'timestamp': record.timestamp,
-                            'metric': metric,
-                            'value': float(record.value) if record.value else 0.0
-                        })
-                except Exception as e:
-                    print(f"Error loading data for {vm}/{metric}: {e}")
-                    continue
+        all_data = [
+            {
+                'vm': record.vm,
+                'timestamp': record.timestamp,
+                'metric': record.metric,
+                'value': float(record.value) if record.value else 0.0,
+            }
+            for record in records
+        ]
         
         if not all_data:
             return pd.DataFrame()
@@ -186,6 +184,29 @@ def load_server_data_from_db(
         import traceback
         traceback.print_exc()
         return pd.DataFrame()
+    finally:
+        if db:
+            db.close()
+
+
+def get_all_servers_list() -> List[str]:
+    """
+    Get only the list of server (VM) names from database.
+    Fast: single SELECT DISTINCT vm, no metrics loaded.
+    Use this instead of generate_server_data() when you only need server names for UI.
+    """
+    if SessionLocal is None:
+        return []
+    db = get_db_session()
+    if db is None:
+        return []
+    try:
+        crud_db = DBCRUD(db)
+        vms = crud_db.get_all_vms()
+        return sorted(vms) if vms else []
+    except Exception as e:
+        print(f"Error loading server list: {e}")
+        return []
     finally:
         if db:
             db.close()
@@ -305,29 +326,28 @@ def load_data_from_database(
             crud_db = DBCRUD(db)
             metrics = crud_db.get_metrics_for_vm(vms[0]) if vms else ['cpu.usage.average']
         
-        all_data = []
+        # One bulk query instead of N_VMs * N_metrics round-trips
+        try:
+            records = crud_facts.get_metrics_fact_bulk(
+                vms=vms,
+                metrics=metrics,
+                start_date=start_date,
+                end_date=end_date,
+                limit=100000,
+            )
+        except Exception as e:
+            print(f"Error bulk loading data: {e}")
+            records = []
         
-        for vm in vms:
-            for metric in metrics:
-                try:
-                    records = crud_facts.get_metrics_fact(
-                        vm=vm,
-                        metric=metric,
-                        start_date=start_date,
-                        end_date=end_date,
-                        limit=10000
-                    )
-                    
-                    for record in records:
-                        all_data.append({
-                            'vm': vm,
-                            'timestamp': record.timestamp,
-                            'metric': metric,
-                            'value': float(record.value) if record.value else 0.0
-                        })
-                except Exception as e:
-                    print(f"Error loading {vm}/{metric}: {e}")
-                    continue
+        all_data = [
+            {
+                'vm': record.vm,
+                'timestamp': record.timestamp,
+                'metric': record.metric,
+                'value': float(record.value) if record.value else 0.0,
+            }
+            for record in records
+        ]
         
         if not all_data:
             return pd.DataFrame()

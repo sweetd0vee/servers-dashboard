@@ -23,17 +23,21 @@ sys.path.append(parent_dir)
 
 # Импортируем модули для загрузки данных из базы
 try:
-    from utils.data_loader import generate_server_data, load_data_from_database
+    from utils.data_loader import generate_server_data, get_all_servers_list, load_data_from_database
 except ImportError:
     # Fallback для прямого импорта
     import importlib.util
 
+    get_all_servers_list = None
+    generate_server_data = None
     data_loader_path = os.path.join(parent_dir, 'utils', 'data_loader.py')
     if os.path.exists(data_loader_path):
         spec = importlib.util.spec_from_file_location("data_loader", data_loader_path)
         data_loader = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(data_loader)
         load_data_from_database = data_loader.load_data_from_database
+        generate_server_data = getattr(data_loader, 'generate_server_data', None)
+        get_all_servers_list = getattr(data_loader, 'get_all_servers_list', None)
         # generate_server_data = data_loader.generate_server_data  # Исправлено: data_loader вместо data_generator
     # else:
         # Если нет data_loader, пробуем data_generator
@@ -156,8 +160,12 @@ def load_as_mapping_data():
 
 @st.cache_data(ttl=300)
 def load_all_servers():
-    """Load list of all servers from database"""
+    """Load list of all servers from database (fast: only distinct names, no metrics)."""
     try:
+        if get_all_servers_list is not None:
+            return get_all_servers_list()
+        if generate_server_data is None:
+            return []
         df = generate_server_data()
         if df.empty:
             st.warning("Сгенерированные данные пусты")

@@ -15,7 +15,7 @@ sys.path.append(parent_dir)
 # Импортируем модули для загрузки данных из базы
 try:
     from utils.alert_rules import AlertSeverity, ServerStatus, alert_system
-    from utils.data_loader import generate_server_data, load_data_from_database
+    from utils.data_loader import generate_server_data, get_all_servers_list, load_data_from_database
 except ImportError:
     # Fallback для прямого импорта
     import importlib.util
@@ -28,6 +28,7 @@ except ImportError:
         spec.loader.exec_module(data_loader)
         load_data_from_database = data_loader.load_data_from_database
         generate_server_data = data_loader.generate_server_data
+        get_all_servers_list = getattr(data_loader, 'get_all_servers_list', None)
     else:
         # Fallback на data_generator если data_loader не найден
         data_generator_path = os.path.join(parent_dir, 'utils', 'data_generator.py')
@@ -36,6 +37,7 @@ except ImportError:
         spec.loader.exec_module(data_generator)
         generate_server_data = data_generator.generate_server_data
         load_data_from_database = None
+        get_all_servers_list = None
 
     # Импортируем alert_rules
     alert_rules_path = os.path.join(parent_dir, 'utils', 'alert_rules.py')
@@ -96,8 +98,10 @@ def load_data_from_db(start_date: datetime = None, end_date: datetime = None, vm
 
 @st.cache_data(ttl=300)
 def load_all_servers():
-    """Load list of all servers from database"""
+    """Load list of all servers from database (fast: only distinct names, no metrics)."""
     try:
+        if get_all_servers_list is not None:
+            return get_all_servers_list()
         df = generate_server_data()
         if df.empty:
             return []

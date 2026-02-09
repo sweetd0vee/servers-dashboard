@@ -3,10 +3,12 @@ try:
     from .data_loader import (
         generate_forecast,
         generate_server_data,
+        get_all_servers_list,
         load_data_from_database,
     )
 except ImportError:
     # Fallback to data_generator if data_loader is not available
     from .data_generator import generate_forecast, generate_server_data
     load_data_from_database = None
+    get_all_servers_list = None
 from .alert_rules import AlertSeverity, ServerStatus, alert_system

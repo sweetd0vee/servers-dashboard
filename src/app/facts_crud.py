@@ -99,6 +99,39 @@ class FactsCRUD:
 
         return query.order_by(db_models.ServerMetricsFact.timestamp).limit(limit).all()
 
+    def get_metrics_fact_bulk(
+        self,
+        vms: List[str],
+        metrics: List[str],
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: int = 100000,
+    ) -> List[db_models.ServerMetricsFact]:
+        """
+        Загрузка метрик для многих VM и метрик одним запросом (оптимизация для дашборда).
+
+        Args:
+            vms: Список имён виртуальных машин
+            metrics: Список метрик
+            start_date: Начальная дата (включительно)
+            end_date: Конечная дата (включительно)
+            limit: Максимальное количество записей суммарно
+
+        Returns:
+            Список записей, отсортированных по времени (ASC)
+        """
+        if not vms or not metrics:
+            return []
+        query = self.db.query(db_models.ServerMetricsFact).filter(
+            db_models.ServerMetricsFact.vm.in_(vms),
+            db_models.ServerMetricsFact.metric.in_(metrics),
+        )
+        if start_date is not None:
+            query = query.filter(db_models.ServerMetricsFact.timestamp >= start_date)
+        if end_date is not None:
+            query = query.filter(db_models.ServerMetricsFact.timestamp <= end_date)
+        return query.order_by(db_models.ServerMetricsFact.timestamp).limit(limit).all()
+
     def get_latest_metrics(self, vm: str, metric: str, hours: int = 24) -> List[db_models.ServerMetricsFact]:
         """
         Получить данные за последние N часов
