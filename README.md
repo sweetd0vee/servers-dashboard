@@ -88,7 +88,7 @@ Details: `docs/ARCHITECTURE.md` and `docs/ARCHITECTURE_SUMMARY.md`.
 
 ## Requirements
 
-- Python 3.12+
+- Python 3.12.x (3.13 not supported by current dependency pins)
 - PostgreSQL 16+ (or Docker)
 - Docker + Docker Compose (for containerized run)
 

@@ -19,6 +19,7 @@ import streamlit as st
 # Добавляем путь для импорта
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
+repo_root = os.path.abspath(os.path.join(current_dir, "..", "..", ".."))
 sys.path.append(parent_dir)
 
 # Импортируем модули для загрузки данных из базы
@@ -107,6 +108,22 @@ def load_data_from_db(start_date: datetime = None, end_date: datetime = None):
         return df
 
 
+def find_all_vm_file():
+    env_path = os.getenv("ALL_VM_XLSX_PATH")
+    candidates = [
+        env_path,
+        os.path.join(repo_root, "data", "source", "all_vm.xlsx"),
+        os.path.join(current_dir, "all_vm.xlsx"),
+        os.path.join(parent_dir, "data", "source", "all_vm.xlsx"),
+        "all_vm.xlsx",
+    ]
+    cleaned = [path for path in candidates if path]
+    for path in cleaned:
+        if os.path.exists(path):
+            return path, cleaned
+    return None, cleaned
+
+
 @st.cache_data(ttl=3600)
 def load_as_mapping_data():
     """Загружает данные о маппинге серверов на АС из Excel файла"""
@@ -117,21 +134,8 @@ def load_as_mapping_data():
             return mapping
 
         # Если модуль не вернул данные, загружаем из файла
-        file_path = os.path.join(current_dir, 'all_vm.xlsx')
-        if not os.path.exists(file_path):
-            # Пробуем найти файл в других местах
-            possible_paths = [
-                os.path.join(os.path.dirname(__file__), '../../../', 'data', 'source', 'all_vm.xlsx'),
-                os.path.join(parent_dir, 'data', 'source', 'all_vm.xlsx'),
-                'all_vm.xlsx'
-            ]
-
-            for path in possible_paths:
-                if os.path.exists(path):
-                    file_path = path
-                    break
-
-        if os.path.exists(file_path):
+        file_path, attempted_paths = find_all_vm_file()
+        if file_path:
             df = pd.read_excel(file_path)
 
             # Создаем словарь маппинга: server_name -> AS
@@ -150,7 +154,11 @@ def load_as_mapping_data():
 
             return mapping
         else:
-            st.warning(f"Файл маппинга АС не найден по пути: {file_path}")
+            st.warning(
+                "Файл маппинга АС не найден. Убедитесь, что all_vm.xlsx находится в "
+                "data/source в корне проекта или задайте путь через ALL_VM_XLSX_PATH.\n"
+                + "\n".join(f"- {path}" for path in attempted_paths)
+            )
             return {}
 
     except Exception as e:
